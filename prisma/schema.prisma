@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model t_vs_project {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(64)
+  description String?   @db.VarChar(255)
+  context_path String?   @unique @db.VarChar(600)
+  compile_version Int @default(0)
+  method String?   @db.VarChar(8)
+  properties Json?
+  state String?   @db.VarChar(12)
+  create_time DateTime @default(now())
+  modify_time DateTime @updatedAt
+  @@index([context_path, id, compile_version], name: "context_id_version")
+}
+
+model t_vs_port {
+  id        String      @id @db.VarChar(64)
+  project_id Int
+  node_id String @db.VarChar(64)
+  type String @db.VarChar(16)
+  properties Json
+  context_comp_api_id Int?
+  http_comp_api_id Int?
+  source_api_type String? @db.VarChar(12)
+  target_api_type String? @db.VarChar(12)
+  source_api_id Int?
+  target_api_id Int?
+  create_time DateTime @default(now())
+  modify_time DateTime @updatedAt
+  @@index([project_id])
+  @@index([node_id])
+  @@index([source_api_id])
+  @@index([target_api_id])
+  @@index([target_api_type, target_api_id], name:"target_api_type_api_id")
+  @@index([source_api_type, source_api_id], name:"source_api_type_api_id")
+  @@index([context_comp_api_id], name:"context_api_id")
+  @@index([http_comp_api_id], name:"http_api_id")
+}
+
+model t_vs_node {
+  id        String      @id @db.VarChar(64)
+  project_id Int
+  task_type String @db.VarChar(16)
+  script String  @db.LongText
+  class_bytes Bytes @db.LongBlob
+  properties Json
+  view_type String @db.VarChar(16)
+  up_level_node_id String @db.VarChar(64)
+  create_time DateTime @default(now())
+  modify_time DateTime @updatedAt
+  @@index([project_id])
+  @@index([up_level_node_id])
+}
+
+model t_vs_link {
+  id        String      @id @db.VarChar(64)
+  project_id Int
+  start_node_id String @db.VarChar(64)
+  end_node_id String @db.VarChar(64)
+  start_port_id String @db.VarChar(64)
+  end_port_id String @db.VarChar(64)
+  properties Json
+  create_time DateTime @default(now())
+  modify_time DateTime @updatedAt
+  @@index([project_id])
+  @@index([start_node_id])
+  @@index([end_node_id])
+  @@unique([start_port_id, end_port_id], name:"start_end_branch_uinq")
+  @@unique([start_node_id], name:"start_branch_id")
+}
