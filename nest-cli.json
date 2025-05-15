@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/graph-sys/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/graph-sys/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/graph-sys",
+  "projects": {
+    "graph-sys": {
+      "type": "application",
+      "root": "apps/graph-sys",
+      "entryFile": "main",
+      "sourceRoot": "apps/graph-sys/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/graph-sys/tsconfig.app.json"
+      }
+    },
+    "admin": {
+      "type": "application",
+      "root": "apps/admin",
+      "entryFile": "main",
+      "sourceRoot": "apps/admin/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/admin/tsconfig.app.json"
+      }
+    },
+    "vs-adapter": {
+      "type": "application",
+      "root": "apps/vs-adapter",
+      "entryFile": "main",
+      "sourceRoot": "apps/vs-adapter/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/vs-adapter/tsconfig.app.json"
+      }
+    }
+  }
+}
