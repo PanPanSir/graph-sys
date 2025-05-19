@@ -35,8 +35,8 @@ model t_vs_port {
   properties Json
   context_comp_api_id Int?
   http_comp_api_id Int?
-  source_api_type String? @db.VarChar(12)
-  target_api_type String? @db.VarChar(12)
+  source_api_type String? @db.VarChar(12) // 数据映射模块，标记原接口是标准接口还是厂商接口，加在这里是方便做索引，万一标准接口和厂商接口要删除的话，需要先查询，再看能否删除。其他接口详细信息在properties里
+  target_api_type String? @db.VarChar(12) // 数据映射模块，目标原接口是标准接口还是厂商接口，加在这里是方便做索引，万一标准接口和厂商接口要删除的话，需要先查询，再看能否删除
   source_api_id Int?
   target_api_id Int?
   create_time DateTime @default(now())
@@ -56,10 +56,10 @@ model t_vs_node {
   project_id Int
   task_type String @db.VarChar(16)
   script String  @db.LongText
-  class_bytes Bytes @db.LongBlob
+  class_bytes Bytes @db.LongBlob // 编辑结果的节点对应的字节码。后面执行的时候从字节码读取出来生成class对象，载根据class对象生成节点实力
   properties Json
   view_type String @db.VarChar(16)
-  up_level_node_id String @db.VarChar(64)
+  up_level_node_id String @db.VarChar(64) // 上一级节点id，如果是第一图层，其父节点id为-1好像
   create_time DateTime @default(now())
   modify_time DateTime @updatedAt
   @@index([project_id])
@@ -77,7 +77,6 @@ model t_vs_link {
   create_time DateTime @default(now())
   modify_time DateTime @updatedAt
   @@index([project_id])
-  @@index([start_node_id])
   @@index([end_node_id])
   @@unique([start_port_id, end_port_id], name:"start_end_branch_uinq")
   @@unique([start_node_id], name:"start_branch_id")
