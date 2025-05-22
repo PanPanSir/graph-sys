@@ -35,6 +35,12 @@
       ],
       "@app/dto/*": [
         "libs/dto/src/*"
+      ],
+      "@app/enum": [
+        "libs/enum/src"
+      ],
+      "@app/enum/*": [
+        "libs/enum/src/*"
       ]
     }
   }

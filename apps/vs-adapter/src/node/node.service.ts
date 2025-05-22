@@ -1,4 +1,9 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AddNodeDto } from './dto/add-node.dto';
 import { PrismaService } from '@app/prisma';
 import { VsNodeTaskType, VsNodeViewType } from '../common/enums/node.enum';
@@ -93,6 +98,91 @@ export class NodeService {
       await this.prismaService.t_vs_port.createMany({
         data: portsToSave,
       });
+    }
+  }
+
+  async list(projectId: number) {
+    const project = await this.prismaService.t_vs_project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+    if (!project) {
+      throw new NotFoundException('项目不存在');
+    }
+    const nodes = await this.prismaService.t_vs_node.findMany({
+      where: {
+        project_id: projectId,
+      },
+    });
+    const nodesMap = nodes.reduce((acc, node) => {
+      acc[node.id] = node;
+      return acc;
+    }, {});
+    const ports = await this.prismaService.t_vs_port.findMany({
+      where: {
+        project_id: projectId,
+      },
+    });
+    const portsMap = ports.reduce((acc, port) => {
+      if (!acc[port.node_id]?.ports) {
+        acc[port.node_id].ports = [port];
+      } else {
+        acc[port.node_id].ports.push(port);
+      }
+      return acc;
+    }, {});
+    const links = await this.prismaService.t_vs_link.findMany({
+      where: {
+        project_id: projectId,
+      },
+    });
+    const linksMap = links.reduce((acc, link) => {
+      const linkStartNode = nodesMap[link.start_node_id];
+      if (acc[linkStartNode.up_level_node_id]?.links) {
+        acc[linkStartNode.up_level_node_id].links.push(link);
+      } else {
+        acc[linkStartNode.up_level_node_id] = {
+          links: [link],
+        };
+      }
+      return acc;
+    }, {});
+    // 找到一层所有的原子节点
+    const upLayerAtomicNodes = nodes.filter((node) => {
+      return (
+        node.view_type === VsNodeViewType.ATOMIC &&
+        node.up_level_node_id === '-1'
+      );
+    });
+    // 找到一层所有的复合节点
+    const upLayerCompositeNodes = nodes.filter((node) => {
+      return (
+        node.view_type === VsNodeViewType.COMPOSITE &&
+        node.up_level_node_id === '-1'
+      );
+    });
+    const endpointDefinitions = this.getEndpointDefinitions(
+      upLayerAtomicNodes,
+      portsMap,
+    );
+  }
+  getEndpointDefinitions(upLayerAtomicNodes, portsMap) {
+    const endpointDefinitions = [];
+    for (const node of upLayerAtomicNodes) {
+      const endpointDefinition = {
+        id: node.id,
+        taskType: node.task_type,
+        viewType: node.view_type,
+        upLevelNodeId: node.up_level_node_id,
+        properties: JSON.parse(node.properties),
+        ports: [],
+      };
+      // 转换并排序端口
+      const curPorts = portsMap[node.id]?.ports
+        .map((port) => new Port(port))
+        .sort((a, b) => a.properties.order - b.properties.order);
+      endpointDefinition.ports = curPorts;
     }
   }
 }

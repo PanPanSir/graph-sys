@@ -3,7 +3,9 @@ import { ProjectService } from './project.service';
 import { ProjectPageQueryReqDTO } from './dto/project-pageQuery-req.dto';
 import { ResultInfo } from '@app/dto/result.dto';
 import { ProjectAddReqDto } from './dto/add-project-req.dto';
+import { ProjectQueryReqDTO } from './dto/project-query-req.dto';
 import { ProjectUpdateReqDtoDto } from './dto/update-project.dto';
+import { ProjectLayerLoadReqDTO } from './dto/project-layerLoad-req.dto';
 
 @Controller('ip/vsProject')
 export class ProjectController {
@@ -11,16 +13,12 @@ export class ProjectController {
 
   @Post('pageQuery')
   async pageQuery(@Body(ValidationPipe) req: ProjectPageQueryReqDTO) {
-    const result = await this.projectService.pageQuery(
-      req.current,
-      req.size,
-      req,
-    );
+    const result = await this.projectService.pageQuery(req);
     return new ResultInfo(result);
   }
 
   @Post('query')
-  async query(@Body(ValidationPipe) req: ProjectPageQueryReqDTO) {
+  async query(@Body(ValidationPipe) req: ProjectQueryReqDTO) {
     const result = await this.projectService.queryByCondition(req);
     return new ResultInfo(result);
   }
@@ -31,11 +29,11 @@ export class ProjectController {
     return new ResultInfo(result);
   }
 
-  @Post('delete')
-  async delete(@Body(ValidationPipe) id: number) {
-    const result = await this.projectService.delete(id);
-    return new ResultInfo(result);
-  }
+  // @Post('delete')
+  // async delete(@Body(ValidationPipe) id: number) {
+  //   const result = await this.projectService.delete(id);
+  //   return new ResultInfo(result);
+  // }
 
   @Post('update')
   async update(@Body(ValidationPipe) req: ProjectUpdateReqDtoDto) {
@@ -71,9 +69,9 @@ export class ProjectController {
   //     return new ResultInfo(result);
   //   }
 
-  //   @Post('layerLoad')
-  //   async layerLoad(@Body(ValidationPipe) req: ProjectLayerLoadReq) {
-  //     const result = await this.projectService.layerLoad(req);
-  //     return new ResultInfo(result);
-  //   }
+  @Post('layerLoad')
+  async layerLoad(@Body(ValidationPipe) req: ProjectLayerLoadReqDTO) {
+    const result = await this.projectService.layerLoad(req);
+    return new ResultInfo(result);
+  }
 }

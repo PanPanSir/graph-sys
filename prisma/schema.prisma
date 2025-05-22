@@ -21,7 +21,7 @@ model t_vs_project {
   compile_version Int @default(0)
   method String?   @db.VarChar(8)
   properties Json?
-  state String?   @db.VarChar(12)
+  state String?   @db.VarChar(12) // 在 Prisma schema 中，目前确实无法直接复用 TypeScript 中定义的枚举类型。这是因为 Prisma schema 是一个独立的 DSL (Domain Specific Language)，它需要在数据库层面定义类型
   create_time DateTime @default(now())
   modify_time DateTime @updatedAt
   @@index([context_path, id, compile_version], name: "context_id_version")

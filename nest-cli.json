@@ -63,6 +63,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/dto/tsconfig.lib.json"
       }
+    },
+    "enum": {
+      "type": "library",
+      "root": "libs/enum",
+      "entryFile": "index",
+      "sourceRoot": "libs/enum/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/enum/tsconfig.lib.json"
+      }
     }
   }
 }
