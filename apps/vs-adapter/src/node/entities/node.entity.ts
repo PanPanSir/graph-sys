@@ -1,63 +1,56 @@
-import { VsNodeTaskType, VsNodeViewType } from '../../common/enums/node.enum';
+import {
+  VsNodeTaskTypeEnum,
+  VsNodeViewTypeEnum,
+} from '../../common/enums/node.enum';
 import { IsNotEmpty, IsNumber, MaxLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { VsNodeProp } from './node.prop.entity';
 
-export class Node {
-  @ApiProperty({ description: '节点ID' })
+export class VsNode {
   @IsNotEmpty({ message: '节点ID不能为空' })
   @MaxLength(64, { message: '节点ID最大长度为64' })
   id: string;
 
-  @ApiProperty({ description: '项目ID' })
   @IsNumber()
   @IsNotEmpty({ message: '项目ID不能为空' })
   projectId: number;
 
-  @ApiProperty({ description: '任务类型', enum: VsNodeTaskType })
   @IsNotEmpty({ message: '任务类型不能为空' })
   @MaxLength(16, { message: '任务类型最大长度为16' })
-  taskType: VsNodeTaskType;
+  taskType: VsNodeTaskTypeEnum;
 
-  @ApiProperty({ description: '脚本' })
   @IsNotEmpty({ message: '脚本不能为空' })
   script: string;
 
-  @ApiProperty({ description: '类字节码' })
   @IsNotEmpty({ message: '类字节码不能为空' })
   classBytes: Buffer;
 
-  @ApiProperty({ description: '属性' })
   @IsNotEmpty({ message: '属性不能为空' })
-  properties: any;
+  properties: VsNodeProp;
 
-  @ApiProperty({ description: '视图类型', enum: VsNodeViewType })
   @IsNotEmpty({ message: '视图类型不能为空' })
   @MaxLength(16, { message: '视图类型最大长度为16' })
-  viewType: VsNodeViewType;
+  viewType: VsNodeViewTypeEnum;
 
-  @ApiProperty({ description: '上级节点ID' })
   @IsNotEmpty({ message: '上级节点ID不能为空' })
   @MaxLength(64, { message: '上级节点ID最大长度为64' })
   upLevelNodeId: string;
 
-  @ApiProperty({ description: '创建时间' })
   createTime: Date;
 
-  @ApiProperty({ description: '修改时间' })
   modifyTime: Date;
 
-  static fromPrisma(prismaNode: any): Node {
-    const node = new Node();
+  static fromPrisma(prismaNode: VsNode): VsNode {
+    const node = new VsNode();
     node.id = prismaNode.id;
-    node.projectId = prismaNode.project_id;
-    node.taskType = prismaNode.task_type as VsNodeTaskType;
+    node.projectId = prismaNode.projectId;
+    node.taskType = prismaNode.taskType as VsNodeTaskTypeEnum;
     node.script = prismaNode.script;
-    node.classBytes = prismaNode.class_bytes;
+    node.classBytes = prismaNode.classBytes;
     node.properties = prismaNode.properties;
-    node.viewType = prismaNode.view_type as VsNodeViewType;
-    node.upLevelNodeId = prismaNode.up_level_node_id;
-    node.createTime = prismaNode.create_time;
-    node.modifyTime = prismaNode.modify_time;
+    node.viewType = prismaNode.viewType as VsNodeViewTypeEnum;
+    node.upLevelNodeId = prismaNode.upLevelNodeId;
+    node.createTime = prismaNode.createTime;
+    node.modifyTime = prismaNode.modifyTime;
     return node;
   }
 }

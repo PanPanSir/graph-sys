@@ -1,10 +1,10 @@
-export enum VsNodeTaskType {
+export enum VsNodeTaskTypeEnum {
   CONTEXT = 'CONTEXT',
   COMPOSITE_NORMAL = 'COMPOSITE_NORMAL',
   COMPOSITE_END = 'COMPOSITE_END',
   END = 'END',
 }
-export enum VsNodeViewType {
+export enum VsNodeViewTypeEnum {
   COMPOSITE = 'COMPOSITE',
   ATOMIC = 'ATOMIC',
 }

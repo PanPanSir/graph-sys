@@ -3,7 +3,7 @@ import { NodeService } from './node.service';
 import { AddNodeDto } from './dto/add-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
 
-@Controller('vs/node')
+@Controller('/ip/vsNode')
 export class NodeController {
   constructor(private readonly nodeService: NodeService) {}
 
@@ -12,9 +12,10 @@ export class NodeController {
   //   return this.nodeService.detailQuery(id);
   // }
 
-  @Post()
+  @Post('add')
   async add(@Body() dto: AddNodeDto) {
-    return this.nodeService.add(dto);
+    await this.nodeService.add(dto);
+    return "success"
   }
 
   // @Get('id')
@@ -22,8 +23,8 @@ export class NodeController {
   //   return this.nodeService.delete(id);
   // }
 
-  // @Post('update')
-  // async update(@Body() node: UpdateNodeDto) {
-  //   return this.nodeService.update(id, node);
-  // // }
+  @Post('update')
+  async update(@Body() node: UpdateNodeDto) {
+    return await this.nodeService.update(node);
+  }
 }

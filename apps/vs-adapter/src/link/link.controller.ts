@@ -3,7 +3,7 @@ import { LinkService } from './link.service';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { UpdateLinkDto } from './dto/update-link.dto';
 
-@Controller('link')
+@Controller('/ip/vsLink')
 export class LinkController {
   constructor(private readonly linkService: LinkService) {}
 

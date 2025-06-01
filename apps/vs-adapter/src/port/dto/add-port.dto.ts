@@ -5,7 +5,8 @@ import {
   IsOptional,
   IsNotEmpty,
 } from 'class-validator';
-import { VsPortType } from '../../common/enums/port.enum';
+import { VsPortTypeEnum } from '../../common/enums/port.enum';
+import { Port } from '../entities/port.entity';
 
 export class AddPortDto {
   @IsNotEmpty({
@@ -23,8 +24,8 @@ export class AddPortDto {
   @IsOptional()
   properties?: string;
 
-  @IsEnum(VsPortType)
-  type: VsPortType;
+  @IsEnum(VsPortTypeEnum)
+  type: VsPortTypeEnum;
 
   @IsNumber()
   @IsOptional()

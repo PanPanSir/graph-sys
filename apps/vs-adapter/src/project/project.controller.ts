@@ -5,7 +5,6 @@ import { ResultInfo } from '@app/dto/result.dto';
 import { ProjectAddReqDto } from './dto/add-project-req.dto';
 import { ProjectQueryReqDTO } from './dto/project-query-req.dto';
 import { ProjectUpdateReqDtoDto } from './dto/update-project.dto';
-import { ProjectLayerLoadReqDTO } from './dto/project-layerLoad-req.dto';
 
 @Controller('ip/vsProject')
 export class ProjectController {
@@ -70,7 +69,7 @@ export class ProjectController {
   //   }
 
   @Post('layerLoad')
-  async layerLoad(@Body(ValidationPipe) req: ProjectLayerLoadReqDTO) {
+  async layerLoad(@Body(ValidationPipe) req: { id: string }) {
     const result = await this.projectService.layerLoad(req);
     return new ResultInfo(result);
   }

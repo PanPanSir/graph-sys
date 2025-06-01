@@ -7,13 +7,15 @@ import { Page } from '@app/dto/page.dto';
 import { ProjectAddReqDto } from './dto/add-project-req.dto';
 import { ProjectQueryReqDTO } from './dto/project-query-req.dto';
 import { ProjectUpdateReqDtoDto } from './dto/update-project.dto';
-import { ProjectLayerLoadReqDTO } from './dto/project-layerLoad-req.dto';
+import { NodeService } from '../node/node.service';
 
 @Injectable()
 export class ProjectService {
   @Inject(PrismaService)
   private readonly prismaService: PrismaService;
 
+  @Inject(NodeService)
+  private readonly nodeService: NodeService;
   async pageQuery(req: ProjectPageQueryReqDTO) {
     const { current, size, name } = req;
     // 构建查询条件
@@ -43,10 +45,10 @@ export class ProjectService {
       name: record.name,
       state: record.state as ProjectStateEnum,
       description: record.description,
-      compileVersion: record.compile_version,
+      compileVersion: record.compileVersion,
       properties: record.properties,
-      createTime: record.create_time,
-      modifyTime: record.modify_time,
+      createTime: record.createTime,
+      modifyTime: record.modifyTime,
     }));
     // 返回分页结果
     return new Page(current, size, total, respRecords);
@@ -88,7 +90,7 @@ export class ProjectService {
       };
     }
     if (contextPath) {
-      where.context_path = {
+      where.contextPath = {
         contains: contextPath.trim(),
       };
     }
@@ -116,12 +118,13 @@ export class ProjectService {
     return true;
   }
 
-  async layerLoad(req: ProjectLayerLoadReqDTO) {
+  async layerLoad(req: { id: string }) {
     const { id } = req;
     const project = await this.prismaService.t_vs_project.findUnique({
       where: {
-        id,
+        id: parseInt(id),
       },
     });
+    return  await this.nodeService.list(project.id);
   }
 }
