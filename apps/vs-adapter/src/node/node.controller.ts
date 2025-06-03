@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { NodeService } from './node.service';
 import { AddNodeDto } from './dto/add-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
@@ -15,7 +15,7 @@ export class NodeController {
   @Post('add')
   async add(@Body() dto: AddNodeDto) {
     await this.nodeService.add(dto);
-    return "success"
+    return 'success';
   }
 
   // @Get('id')

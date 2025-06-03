@@ -137,7 +137,7 @@ export class NodeService {
     });
     const portsMap = ports.reduce((acc, port) => {
       if (!acc[port.nodeId]?.ports) {
-        if(!acc[port.nodeId]) {
+        if (!acc[port.nodeId]) {
           acc[port.nodeId] = {};
         }
         acc[port.nodeId].ports = [port];
@@ -305,6 +305,7 @@ export class NodeService {
       );
       // 寻找其ports
       node.ports = ports;
+      node.properties = JSON.parse(node.properties);
       nodes.push(node);
     }
     return nodes;

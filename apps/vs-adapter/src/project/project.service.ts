@@ -125,6 +125,6 @@ export class ProjectService {
         id: parseInt(id),
       },
     });
-    return  await this.nodeService.list(project.id);
+    return await this.nodeService.list(project.id);
   }
 }

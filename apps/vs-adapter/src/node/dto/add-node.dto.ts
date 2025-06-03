@@ -9,7 +9,10 @@ import {
   Length,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { VsNodeTaskTypeEnum, VsNodeViewTypeEnum } from '../../common/enums/node.enum';
+import {
+  VsNodeTaskTypeEnum,
+  VsNodeViewTypeEnum,
+} from '../../common/enums/node.enum';
 import { VsPortTypeEnum } from '../../common/enums/port.enum';
 import { NodePropertiesDto } from './node-properties.dto';
 import { VsPortProp } from '../../port/entities/port.prop.entity';

@@ -1,16 +1,6 @@
 {
-	"type": "node",
-	"request": "launch",
-	"name": "debug nest1",
-	"runtimeExecutable": "npm",
-	"args": [
-			"start:dev-vs-adapter",
-	],
-	"skipFiles": [
-			"<node_internals>/**"
-	],
-	"console": "integratedTerminal",
-	"configurations": [
+    "version": "0.2.0",
+    "configurations": [
         {
             "name": "Launch via NPM",
             "request": "launch",
