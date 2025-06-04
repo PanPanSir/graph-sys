@@ -6,7 +6,6 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { VsPortTypeEnum } from '../../common/enums/port.enum';
-import { Port } from '../entities/port.entity';
 
 export class AddPortDto {
   @IsNotEmpty({
