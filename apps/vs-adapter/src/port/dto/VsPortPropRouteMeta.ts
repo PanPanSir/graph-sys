@@ -1,13 +1,9 @@
 import { IsString, IsNotEmpty, Length, IsEnum } from 'class-validator';
+import { VsPortRouteMetaDataTypeEnum, VsPortRouteMetaOpTypeEnum } from '../../common/enums/port.route.enum';
 
 // 假设这些枚举已经定义
 export enum VsPortRouteMetaSourceTypeEnum {}
-// 根据实际情况定义枚举值
 
-export enum VsPortRouteMetaDataTypeEnum {}
-// 根据实际情况定义枚举值
-
-export enum VsPortRouteMetaOpTypeEnum {}
 // 根据实际情况定义枚举值
 
 /**

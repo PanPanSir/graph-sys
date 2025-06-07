@@ -74,6 +74,8 @@ export class AddPortDto {
 
     return parts.join(', ') + '}';
   }
+  // 转换为 VsPort 实体，其中vsPort实体是要存储到数据库中的，而AddPortDto是前端传过来的，两者的属性可能不一致，需要转换一下
+  // Vsport放到这里的好处是可以在转换的时候校验一下属性是否正确，避免存储到数据库的时候出错
   toVsPort() {
     const vsPort = new Port();
     vsPort.id = this.id; // generate by front end
