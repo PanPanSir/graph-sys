@@ -6,6 +6,8 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 import { VsPortTypeEnum } from '../../common/enums/port.enum';
+import { VsPortProp } from './VsPortProp';
+import { Port } from '../entities/port.entity';
 
 export class AddPortDto {
   @IsNotEmpty({
@@ -21,7 +23,7 @@ export class AddPortDto {
 
   @IsString()
   @IsOptional()
-  properties?: string;
+  properties?: VsPortProp;
 
   @IsEnum(VsPortTypeEnum)
   type: VsPortTypeEnum;
@@ -71,5 +73,34 @@ export class AddPortDto {
     // if (this.targetApiId) parts.push(`targetApiId=${this.targetApiId}`);
 
     return parts.join(', ') + '}';
+  }
+  toVsPort() {
+    const vsPort = new Port();
+    vsPort.id = this.id; // generate by front end
+    vsPort.projectId = this.projectId;
+    vsPort.nodeId = this.nodeId;
+    vsPort.type = this.type;
+
+    if (this.properties?.context != null) {
+      const apiId = this.properties.context.contextCompApiId;
+      vsPort.contextCompApiId = apiId;
+    }
+
+    if (this.properties?.http != null) {
+      const apiId = this.properties.http.httpCompApiId;
+      vsPort.httpCompApiId = apiId;
+    }
+
+    if (this.properties?.dataMapping != null) {
+      vsPort.sourceApiType = this.properties.dataMapping.sourceApiType;
+      vsPort.sourceApiId = this.properties.dataMapping.sourceApiId;
+      vsPort.targetApiType = this.properties.dataMapping.targetApiType;
+      vsPort.targetApiId = this.properties.dataMapping.targetApiId;
+    }
+
+    // 使用 JSON.stringify 将 properties 对象转换为 JSON 字符串
+    vsPort.properties = JSON.stringify(this.properties);
+
+    return vsPort;
   }
 }

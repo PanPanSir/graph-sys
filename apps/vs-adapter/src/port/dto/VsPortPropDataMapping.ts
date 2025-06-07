@@ -1,12 +1,9 @@
 import { IsOptional, ValidateNested, IsEnum, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VsDataConvProp } from './VsDataConvProp';
+import { VsApiTypeEnum, VsDataConvertTypeEnum } from '../../common/enums/port.enum';
 
-// 假设这些枚举已经定义
-export enum VsApiTypeEnum {}
-// 根据实际情况定义枚举值
 
-export enum VsDataConvertTypeEnum {}
 // 根据实际情况定义枚举值
 
 /**

@@ -1,4 +1,4 @@
-import { VsPortTypeEnum } from '../../common/enums/port.enum';
+import { VsApiTypeEnum, VsPortTypeEnum } from '../../common/enums/port.enum';
 import { VsPortProp } from './port.prop.entity';
 
 export class Port {
@@ -19,7 +19,7 @@ export class Port {
   type: VsPortTypeEnum;
 
   // @IsNotEmpty({ message: '属性不能为空' })
-  properties: VsPortProp;
+  properties: string;
 
   // @IsOptional()
   // @IsNumber()
@@ -35,7 +35,7 @@ export class Port {
 
   // @IsOptional()
   // @MaxLength(12, { message: '目标API类型最大长度为12' })
-  targetApiType?: string;
+  targetApiType?: VsApiTypeEnum;
 
   // @IsOptional()
   // @IsNumber()

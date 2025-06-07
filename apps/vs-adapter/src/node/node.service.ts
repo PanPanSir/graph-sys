@@ -302,7 +302,10 @@ export class NodeService {
     for (const node of realNodes) {
       const ports = portsMap[node.id]?.ports.sort(
         (a, b) => a.properties.order - b.properties.order,
-      );
+      ).map(port => ({
+        ...port,
+       properties: JSON.parse(port.properties),
+      }));
       // 寻找其ports
       node.ports = ports;
       node.properties = JSON.parse(node.properties);

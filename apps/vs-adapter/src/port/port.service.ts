@@ -40,14 +40,65 @@ export class PortService {
     });
     this.checkCompositeNormalNodeOutputPortNameLength(
       req.properties.name,
-      node.taskType,
+      node.taskType as VsNodeTaskTypeEnum,
       req.type,
     );
+     // start node only exist output port, no input port
+    if (node.taskType === VsNodeTaskTypeEnum.CONTEXT) {
+      if (req.type === VsPortTypeEnum.INPUT_PORT) {
+        throw new BadRequestException(
+          `起始节点只能存在输出端口,请检查`,
+        );
+      }
+    }
+     // end node only exist input port, no output port
+    if (node.taskType === VsNodeTaskTypeEnum.END || node.viewType === VsNodeTaskTypeEnum.COMPOSITE_END) {
+      if (req.type === VsPortTypeEnum.OUTPUT_PORT) {
+        throw new BadRequestException(
+          `结束节点只能存在输入端口,请检查`,
+        );
+      }
+    }
+    // check node output port limit
+    // COMPOSITE_NORMAL & ROUTE can have more than one output ports
+    if (
+      node.taskType === VsNodeTaskTypeEnum.CONTEXT ||
+      node.taskType === VsNodeTaskTypeEnum.HTTP ||
+      node.taskType === VsNodeTaskTypeEnum.DATA_MAPPING
+    ) {
+      const count = await this.prismaService.t_vs_port.count({
+        where: {
+          nodeId: req.nodeId,
+          type: VsPortTypeEnum.OUTPUT_PORT,
+        },
+      });
+      if (count > 1) {
+        throw new BadRequestException(
+          `${node.taskType}节点ID=${req.nodeId}下存在多个输出端口,请检查`,
+        );
+      }
+    }
+    this.prismaService.t_vs_port.create({
+      data: {
+        ...req.toVsPort(),
+        projectId: node.projectId,
+      },
+    });
     return 'success';
   }
   checkCompositeNormalNodeOutputPortNameLength(
     portName: string,
     taskType: VsNodeTaskTypeEnum,
     portType: VsPortTypeEnum,
-  ) {}
+  ) {
+    if (
+      taskType === VsNodeTaskTypeEnum.COMPOSITE_NORMAL && portType === VsPortTypeEnum.OUTPUT_PORT
+    ) {
+      if (portName.length > 10) {
+        throw new BadRequestException(
+          `复合节点输出端口名称不能超过10个字符`,
+        );
+      }
+    }
+  }
 }
