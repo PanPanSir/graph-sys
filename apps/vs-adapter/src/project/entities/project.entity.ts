@@ -1,5 +1,5 @@
 import { IsNumber, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
-import { ProjectStateEnum } from '../../common/enums/project.enum';
+import { ProjectStateEnum } from '@app/enum//project.enum';
 
 export class Project {
   @IsNumber()

@@ -1,12 +1,12 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { AddPortDto } from './dto/add-port.dto';
-import { VsPortTypeEnum } from '../common/enums/port.enum';
+import { VsPortTypeEnum } from '@app/enum//port.enum';
 import { PrismaService } from '@app/prisma';
-import { VsNodeTaskTypeEnum } from '../common/enums/node.enum';
+import { VsNodeTaskTypeEnum } from '@app/enum//node.enum';
 import { UpdatePortDto } from './dto/update-port.dto';
 import { VsPortProp } from './dto/VsPortProp';
-import { VsPortRouteMetaDataTypeEnum } from './dto/VsPortPropRouteMeta';
-import { VsPortRouteMetaDataTypeValidator, VsPortRouteMetaOpTypeOperator, VsPortRouteMetaSourceTypeExpression } from '../common/enums/port.route.enum';
+import { VsPortRouteMetaDataTypeEnum, VsPortRouteMetaDataTypeValidator, VsPortRouteMetaOpTypeOperator, VsPortRouteMetaSourceTypeExpression } from '@app/enum//port.route.enum';
+import { FlowNodeUtil } from '../common/utils/flow-node.util';
 
 
 @Injectable()
@@ -218,19 +218,13 @@ export class PortService {
           script = this.generatePortScriptWhenRouteTaskType(portId, reqProp, nodeId);
         } else if (nodeTaskType === VsNodeTaskTypeEnum.HTTP) {
           // HTTP组件
-          script = this.generatePortScriptWhenHttpTaskType(portId, reqProp, nodeId);
+          script = this.generatePortScriptWhenRouteTaskType(portId, reqProp, nodeId);
         } else if (nodeTaskType === VsNodeTaskTypeEnum.CONVERT) {
           // 纯脚本组件
-          script = this.generatePortScriptWhenConvertTaskType(portId, reqProp, nodeId);
+          script = this.generatePortScriptWhenRouteTaskType(portId, reqProp, nodeId);
         } else if (nodeTaskType === VsNodeTaskTypeEnum.DATA_MAPPING) {
           // 数据映射组件
-          script = this.generatePortScriptWhenDataMappingTaskType(portId, reqProp, nodeId);
-        } else if (nodeTaskType === VsNodeTaskTypeEnum.REQ_HEADER) {
-          // 请求头组件
-          script = this.generatePortScriptWhenReqHeaderTaskType(portId, reqProp, nodeId);
-        } else if (nodeTaskType === VsNodeTaskTypeEnum.RSP_HEADER) {
-          // 响应头组件
-          script = this.generatePortScriptWhenRspHeaderTaskType(portId, reqProp, nodeId);
+          script = this.generatePortScriptWhenRouteTaskType(portId, reqProp, nodeId);
         } else {
           console.error(`unsupported task type, portId = ${portId}, nodeId = ${vsNode.id}, taskType = ${vsNode.taskType}`);
           throw new BadRequestException(`不支持的任务类型,端口ID=${portId},节点ID=${vsNode.id},任务类型=${vsNode.taskType},端口类型=${vsPortType}`);
@@ -242,7 +236,7 @@ export class PortService {
       } else {
         if (nodeTaskType === VsNodeTaskTypeEnum.END) {
           // 结束组件
-          script = this.generatePortScriptWhenEndTaskType(portId, reqProp, nodeId);
+          script = this.generatePortScriptWhenRouteTaskType(portId, reqProp, nodeId);
         } else {
           console.error(`unsupported task type with input port, portId = ${portId}, nodeId = ${vsNode.id}, taskType = ${vsNode.taskType}`);
           throw new BadRequestException(`不支持的任务类型,端口ID=${portId},节点ID=${vsNode.id},任务类型=${vsNode.taskType},端口类型=${vsPortType}`);

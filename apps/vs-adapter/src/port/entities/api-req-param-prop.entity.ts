@@ -1,4 +1,4 @@
-import { VsApiParamEnum } from '../../common/enums/data.mapping.enum';
+import { VsApiParamEnum } from '@app/enum//data.mapping.enum';
 
 export class VsApiReqParamProp {
   //  @ApiProperty({ description: '参数名字' })

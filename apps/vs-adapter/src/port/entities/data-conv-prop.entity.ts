@@ -1,4 +1,4 @@
-import { DataConvertFieldTypeEnum } from '../../common/enums/data.mapping.enum';
+import { DataConvertFieldTypeEnum } from '@app/enum//data.mapping.enum';
 import { VsApiReqParamProp } from './api-req-param-prop.entity';
 
 export class VsDataConvProp {

@@ -10,9 +10,9 @@ import {
   VsNodeTaskTypeEnum,
   VsNodeViewTypeEnum,
   VsVirtualNodeTypeEnum,
-} from '../common/enums/node.enum';
-import { VsPortTypeEnum } from '../common/enums/port.enum';
-import { Port } from '../port/entities/port.entity';
+} from '@app/enum//node.enum';
+import { VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsPort } from '../port/entities/port.entity';
 import {
   RouteDefinitionRespDto,
   VsNodeRespDto,
@@ -226,7 +226,7 @@ export class NodeService {
       };
       // 前端添加端口的时候，是有顺序的，因此需要转换并排序端口
       const curPorts = portsMap[node.id]?.ports
-        .map((port) => Port.fromPrisma(port))
+        .map((port) => VsPort.fromPrisma(port))
         .sort((a, b) => a.properties.order - b.properties.order);
       endpointDefinition.ports = curPorts || [];
       endpointDefinitions.push(endpointDefinition);
@@ -244,7 +244,7 @@ export class NodeService {
     for (const node of upLayerCompositeNodes) {
       const routeDefinition: RouteDefinitionRespDto = node;
       // links: Link[];
-      // ports: Port[];
+      // ports: VsPort[];
       // nodes: VsNode[]
       // 隶属于当前复合节点的所有link，包括第一图层和第二图层的link
       const curLinks = this.getDownLayerLinks(links, nodesMap, node.id);

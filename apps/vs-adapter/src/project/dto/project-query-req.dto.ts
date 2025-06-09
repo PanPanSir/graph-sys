@@ -5,7 +5,7 @@ import {
   IsString,
   Length,
 } from 'class-validator';
-import { HttpMethodEnum } from '../../common/enums/project.enum';
+import { HttpMethodEnum } from '@app/enum//project.enum';
 
 export class ProjectQueryReqDTO {
   @IsOptional()

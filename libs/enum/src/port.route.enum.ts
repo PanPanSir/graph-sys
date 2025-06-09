@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Logger } from '@nestjs/common';
 import * as dayjs from 'dayjs';
-import { FlowNodeUtil } from '../utils/flow-node.util';
 
 /**
  * 端口条件表达式中的源数据的数值类型
@@ -136,7 +135,15 @@ export enum VsPortRouteMetaSourceTypeEnum {
   REQ_HEADER = 'REQ_HEADER',
   REQ_PARAM = 'REQ_PARAM',
 }
+/**
+     * get request header for code generate
+     */
+export const EXP_REQ_HEADER = "this.getRequestHeader()";
 
+/**
+ * get request param for code generate
+ */
+export const EXP_REQ_PARAM = "this.getRequestParam()";
 // 为了支持枚举值的描述和表达式，我们可以创建辅助映射
 export const VsPortRouteMetaSourceTypeDescription: Record<
   VsPortRouteMetaSourceTypeEnum,
@@ -150,8 +157,8 @@ export const VsPortRouteMetaSourceTypeExpression: Record<
   VsPortRouteMetaSourceTypeEnum,
   string
 > = {
-  [VsPortRouteMetaSourceTypeEnum.REQ_HEADER]: FlowNodeUtil.EXP_REQ_HEADER,
-  [VsPortRouteMetaSourceTypeEnum.REQ_PARAM]: FlowNodeUtil.EXP_REQ_PARAM,
+  [VsPortRouteMetaSourceTypeEnum.REQ_HEADER]: EXP_REQ_HEADER,
+  [VsPortRouteMetaSourceTypeEnum.REQ_PARAM]: EXP_REQ_PARAM,
 };
 
 // 描述信息映射

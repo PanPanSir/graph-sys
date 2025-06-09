@@ -1,7 +1,7 @@
-import { VsApiTypeEnum, VsPortTypeEnum } from '../../common/enums/port.enum';
+import { VsApiTypeEnum, VsPortTypeEnum } from '@app/enum//port.enum';
 import { VsPortProp } from './port.prop.entity';
 
-export class Port {
+export class VsPort {
   // @IsNotEmpty({ message: '端口ID不能为空' })
   // @MaxLength(64, { message: '端口ID最大长度为64' })
   id: string;
@@ -49,8 +49,8 @@ export class Port {
 
   modifyTime: Date;
 
-  static fromPrisma(prismaPort: Port): Port {
-    const port = new Port();
+  static fromPrisma(prismaPort: VsPort): VsPort {
+    const port = new VsPort();
     port.id = prismaPort.id;
     port.projectId = prismaPort.projectId;
     port.nodeId = prismaPort.nodeId;

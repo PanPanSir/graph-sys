@@ -2,7 +2,7 @@ import {
   VsPortRouteMetaDataTypeEnum,
   VsPortRouteMetaOpTypeEnum,
   VsPortRouteMetaSourceTypeEnum,
-} from '../../common/enums/port.route.enum';
+} from '@app/enum//port.route.enum';
 
 export class VsPortPropRouteMeta {
   // @ApiProperty({ description: '源' })

@@ -1,4 +1,4 @@
-import { VsHttpMethodEnum } from '../../common/enums/port.enum';
+import { VsHttpMethodEnum } from '@app/enum//port.enum';
 
 export class VsPortPropHttp {
   // @ApiProperty({ description: 'HTTP组件的接口ID' })

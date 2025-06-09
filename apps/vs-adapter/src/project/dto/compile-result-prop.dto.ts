@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { CompileStatusEnum } from '../../common/enums/project.enum';
+import { CompileStatusEnum } from '@app/enum//project.enum';
 import { Transform } from 'class-transformer';
 
 export class CompileResultPropDto {

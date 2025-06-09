@@ -67,16 +67,16 @@ model t_vs_node {
 model t_vs_link {
   id           String    @id @db.VarChar(64)
   projectId    Int       @map("project_id")
-  startNodeId  String    @map("start_node_id") @db.VarChar(64)
-  endNodeId    String    @map("end_node_id") @db.VarChar(64)
-  startPortId  String    @map("start_port_id") @db.VarChar(64)
-  endPortId    String    @map("end_port_id") @db.VarChar(64)
+  sourceId  String    @map("start_node_id") @db.VarChar(64)
+  targetId    String    @map("end_node_id") @db.VarChar(64)
+  sourcePort  String    @map("start_port_id") @db.VarChar(64)
+  targetPort    String    @map("end_port_id") @db.VarChar(64)
   properties   Json
   createTime   DateTime  @default(now()) @map("create_time")
   modifyTime   DateTime  @updatedAt @map("modify_time")
 
   @@index([projectId])
-  @@index([endNodeId])
-  @@unique([startPortId, endPortId], name:"start_end_branch_uinq")
-  @@unique([startNodeId], name:"start_branch_id")
+  @@index([targetId])
+  @@unique([sourcePort, targetPort], name:"start_end_branch_uinq")
+  @@unique([sourceId], name:"start_branch_id")
 }

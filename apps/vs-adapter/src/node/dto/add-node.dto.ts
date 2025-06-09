@@ -12,8 +12,8 @@ import { Transform, Type } from 'class-transformer';
 import {
   VsNodeTaskTypeEnum,
   VsNodeViewTypeEnum,
-} from '../../common/enums/node.enum';
-import { VsPortTypeEnum } from '../../common/enums/port.enum';
+} from '@app/enum//node.enum';
+import { VsPortTypeEnum } from '@app/enum//port.enum';
 import { NodePropertiesDto } from './node-properties.dto';
 import { VsPortProp } from '../../port/entities/port.prop.entity';
 

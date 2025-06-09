@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { VsNodeTaskTypeEnum } from '../enums/node.enum';
 import { VsNodeUserLogSaveReq } from '../../node/dto/node-user-log-save-req';
 import { DateTimeUtil } from './date-time-util';
 import { Queue } from 'bullmq';
+import { VsNodeTaskTypeEnum } from '@app/enum/node.enum';
 /**
  * 外部API相关常量
  * 用于标准接口请求的参数定义和配置

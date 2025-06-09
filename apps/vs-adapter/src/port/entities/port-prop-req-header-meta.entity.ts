@@ -1,4 +1,4 @@
-import { VsPortReqHeaderMetaOpTypeEnum } from '../../common/enums/port.enum';
+import { VsPortReqHeaderMetaOpTypeEnum } from '@app/enum//port.enum';
 
 export class VsPortPropReqHeaderMeta {
   // @ApiProperty({ description: '键' })

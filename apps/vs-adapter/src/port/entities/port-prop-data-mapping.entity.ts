@@ -1,7 +1,7 @@
 import {
   VsApiTypeEnum,
   VsDataConvertTypeEnum,
-} from '../../common/enums/data.mapping.enum';
+} from '@app/enum//data.mapping.enum';
 import { VsDataConvProp } from './data-conv-prop.entity';
 
 export class VsPortPropDataMapping {

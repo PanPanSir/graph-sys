@@ -1,7 +1,7 @@
 import { IsOptional, ValidateNested, IsEnum, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { VsDataConvProp } from './VsDataConvProp';
-import { VsApiTypeEnum, VsDataConvertTypeEnum } from '../../common/enums/port.enum';
+import { VsApiTypeEnum, VsDataConvertTypeEnum } from '@app/enum//port.enum';
 
 
 // 根据实际情况定义枚举值

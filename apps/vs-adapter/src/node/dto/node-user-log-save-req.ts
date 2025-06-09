@@ -3,7 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsString, IsOptional, IsDate, IsEnum } from 'class-validator';
 //
 // import { VsNodeUserLog } from '../../../po/log/vs/vs-node-user-log';
-import { VsNodeTaskTypeEnum } from '../../common/enums/node.enum';
+import { VsNodeTaskTypeEnum } from '@app/enum//node.enum';
 
 /**
  * 图形化引擎的请求用户日志,存储于ES中

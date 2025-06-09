@@ -1,9 +1,7 @@
-import {
-  VsNodeTaskTypeEnum,
-  VsNodeViewTypeEnum,
-} from '../../common/enums/node.enum';
+
 import { IsNotEmpty, IsNumber, MaxLength } from 'class-validator';
 import { VsNodeProp } from './node.prop.entity';
+import { VsNodeTaskTypeEnum, VsNodeViewTypeEnum } from '@app/enum/node.enum';
 
 export class VsNode {
   @IsNotEmpty({ message: '节点ID不能为空' })

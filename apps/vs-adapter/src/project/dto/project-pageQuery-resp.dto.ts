@@ -1,4 +1,4 @@
-import { ProjectStateEnum } from '../../common/enums/project.enum';
+import { ProjectStateEnum } from '@app/enum//project.enum';
 import { Project } from '../entities/project.entity';
 import { ProjectPropDto } from './project-prop.dto';
 

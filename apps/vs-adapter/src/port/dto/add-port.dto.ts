@@ -5,7 +5,7 @@ import {
   IsOptional,
   IsNotEmpty,
 } from 'class-validator';
-import { VsPortTypeEnum } from '../../common/enums/port.enum';
+import { VsPortTypeEnum } from '@app/enum//port.enum';
 import { VsPortProp } from './VsPortProp';
 import { Port } from '../entities/port.entity';
 

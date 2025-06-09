@@ -4,36 +4,16 @@ import { firstValueFrom } from 'rxjs';
 import * as vm from 'vm';
 import * as crypto from 'crypto';
 import { FlowNodeTask } from './flow-node-task';
+import { VsNodeViewTypeEnum, VsNodeTaskTypeEnum } from '@app/enum/node.enum';
+import { VsNode } from '../../node/entities/node.entity';
+import { VsLink } from '../../link/entities/link.entity';
+import { VsPort } from '../../port/entities/port.entity';
+import { Flow } from './flow';
+import { FlowNode } from './flow-node';
+import { FlowLink } from './flow-link';
+import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
+import { VsExecFlow } from './Vs-exec-flow';
 
-/**
- * 流程节点任务类型枚举
- * 对应Java中的VsNodeTaskTypeEnum
- */
-export enum NodeTaskType {
-  CONTEXT = 'CONTEXT',     // 上下文节点
-  ROUTE = 'ROUTE',         // 路由节点
-  HTTP = 'HTTP',           // HTTP请求节点
-  DATA_CONV = 'DATA_CONV', // 数据转换节点
-  END = 'END'              // 结束节点
-}
-
-/**
- * 流程节点视图类型枚举
- * 对应Java中的VsNodeViewTypeEnum
- */
-export enum NodeViewType {
-  ATOMIC = 'ATOMIC',       // 原子节点
-  COMPOSITE = 'COMPOSITE'  // 复合节点
-}
-
-/**
- * 端口类型枚举
- * 对应Java中的VsPortTypeEnum
- */
-export enum PortType {
-  INPUT_PORT = 'INPUT_PORT',   // 输入端口
-  OUTPUT_PORT = 'OUTPUT_PORT'  // 输出端口
-}
 
 /**
  * 路由元数据源类型枚举
@@ -44,49 +24,8 @@ export enum RouteMetaSourceType {
   REQ_PARAM = 'REQ_PARAM'      // 请求参数
 }
 
-/**
- * 流程节点接口
- * 对应Java中的VsNode
- */
-export interface FlowNode {
-  id: string;
-  name: string;
-  taskType: NodeTaskType;
-  viewType: NodeViewType;
-  properties?: string;
-}
 
-/**
- * 流程端口接口
- * 对应Java中的VsPort
- */
-export interface FlowPort {
-  id: string;
-  nodeId: string;
-  type: PortType;
-  properties: string;
-}
 
-/**
- * 流程连接接口
- * 对应Java中的VsLink
- */
-export interface FlowLink {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  sourcePort: string;
-  targetPort: string;
-}
-
-/**
- * 流程接口
- * 对应Java中的Flow
- */
-export interface Flow {
-  nodes: Set<FlowNode>;
-  links: Set<FlowLink>;
-}
 
 /**
  * 端口属性接口
@@ -650,21 +589,14 @@ export class FlowNodeUtil {
    * @param nodes 所有实际执行的流程节点（不包括虚拟节点）
    * @returns 实际执行流程
    */
-  public static makeStFlow(links: FlowLink[], nodes: FlowNode[]): Flow {
+  public static makeStFlow(links: VsLink[], nodes: VsNode[]): Flow {
     const flow: Flow = {
       links: new Set(links.map(e => ({
         sourceId: e.sourceId,
         targetId: e.targetId,
-        id: e.id,
-        sourcePort: e.sourcePort,
-        targetPort: e.targetPort
       }))),
       nodes: new Set(nodes.map(n => ({
         nodeId: n.id,
-        id: n.id,
-        name: n.name,
-        taskType: n.taskType,
-        viewType: n.viewType
       })))
     };
     return flow;
@@ -680,7 +612,7 @@ export class FlowNodeUtil {
    */
   public static getNodeIdsMap(
     flow: Flow,
-    nodeId2node: Map<string, FlowNode>
+    nodeId2node: Map<string, VsNode>
   ): Map<string, string[]> {
     const nodes = Array.from(flow.nodes);
     const links = Array.from(flow.links);
@@ -732,14 +664,14 @@ export class FlowNodeUtil {
     endNodeSet: Set<string>,
     nodes: Set<FlowNode>,
     links: Set<FlowLink>,
-    nodeId2node: Map<string, FlowNode>
+    nodeId2node: Map<string, VsNode>
   ): string[] {
     const startNodeId: string[] = []; // 大小必须等于1
 
     for (const nodeId of nodeIdSet) {
       if (!endNodeSet.has(nodeId)) {
         const vsNode = nodeId2node.get(nodeId);
-        if (vsNode && vsNode.taskType === NodeTaskType.CONTEXT) {
+        if (vsNode && vsNode.taskType === VsNodeTaskTypeEnum.CONTEXT) {
           startNodeId.push(nodeId);
         }
       }
@@ -767,14 +699,14 @@ export class FlowNodeUtil {
     startNodeSet: Set<string>,
     nodes: Set<FlowNode>,
     links: Set<FlowLink>,
-    nodeId2node: Map<string, FlowNode>
+    nodeId2node: Map<string, VsNode>
   ): string[] {
     const endNodeIds: string[] = []; // 大小必须 >= 1
 
     for (const nodeId of nodeIdSet) {
       if (!startNodeSet.has(nodeId)) {
         const vsNode = nodeId2node.get(nodeId);
-        if (vsNode && vsNode.taskType === NodeTaskType.END) {
+        if (vsNode && vsNode.taskType === VsNodeTaskTypeEnum.END) {
           endNodeIds.push(nodeId);
         }
       }
@@ -831,11 +763,11 @@ export class FlowNodeUtil {
    * @throws DataConsistencyException 数据一致性异常
    */
   public static getActualOutputPorts(
-    ports: FlowPort[],
-    nodeId2node: Map<string, FlowNode>,
-    endNodeId2node: Map<string, FlowNode>
-  ): FlowPort[] {
-    const actualOutputPorts: FlowPort[] = [];
+    ports: VsPort[],
+    nodeId2node: Map<string, VsNode>,
+    endNodeId2node: Map<string, VsNode>
+  ): VsPort[] {
+    const actualOutputPorts: VsPort[] = [];
     if (!ports) {
       return actualOutputPorts;
     }
@@ -847,18 +779,18 @@ export class FlowNodeUtil {
       }
 
       // 对大多数节点使用输出脚本
-      if (vsPort.type === PortType.OUTPUT_PORT) {
-        if (vsNode.viewType === NodeViewType.ATOMIC) {
+      if (vsPort.type === VsPortTypeEnum.OUTPUT_PORT) {
+        if (vsNode.viewType === VsNodeViewTypeEnum.ATOMIC) {
           actualOutputPorts.push(vsPort);
         }
       }
 
       // 结束节点只存在输入端口，所以我们使用输入端口脚本...
-      if (vsPort.type === PortType.INPUT_PORT) {
-        if (vsNode.taskType === NodeTaskType.END) {
+      if (vsPort.type === VsPortTypeEnum.INPUT_PORT) {
+        if (vsNode.taskType === VsNodeTaskTypeEnum.END) {
           const genPort = { ...vsPort };
           // 更改输出类型，以便稍后我们可以生成节点任务代码
-          genPort.type = PortType.OUTPUT_PORT;
+          genPort.type = VsPortTypeEnum.OUTPUT_PORT;
           actualOutputPorts.push(genPort);
         }
       }
@@ -878,13 +810,13 @@ export class FlowNodeUtil {
    * @throws DataConsistencyException 数据一致性异常
    */
   public static getActualLinks(
-    links: FlowLink[],
-    nodeId2node: Map<string, FlowNode>,
-    portId2Port: Map<string, FlowPort>,
-    sourcePort2Link: Map<string, FlowLink>,
+    links: VsLink[],
+    nodeId2node: Map<string, VsNode>,
+    portId2Port: Map<string, VsPort>,
+    sourcePort2Link: Map<string, VsLink>,
     nodeId2NodeName: Map<string, string>
-  ): FlowLink[] {
-    const actualLinks: FlowLink[] = [];
+  ): VsLink[] {
+    const actualLinks: VsLink[] = [];
     if (!links) {
       return actualLinks;
     }
@@ -893,7 +825,7 @@ export class FlowNodeUtil {
       const startNodeId = vsLink.sourceId;
       const startNode = nodeId2node.get(startNodeId);
 
-      if (startNode.viewType === NodeViewType.COMPOSITE) {
+      if (startNode.viewType === VsNodeViewTypeEnum.COMPOSITE) {
         // 忽略以虚拟节点开始的连接
         continue;
       }
@@ -919,7 +851,7 @@ export class FlowNodeUtil {
           throw new Error(`无法找到节点,ID=${tempPort.nodeId}`);
         }
 
-        if (tempNode.viewType === NodeViewType.ATOMIC) {
+        if (tempNode.viewType === VsNodeViewTypeEnum.ATOMIC) {
           endNodeId = tempNode.id;
           break;
         } else {
@@ -934,7 +866,7 @@ export class FlowNodeUtil {
       }
 
       // 更新连接目标节点ID
-      const actualLink: FlowLink = {
+      const actualLink: VsLink = {
         id: vsLink.id,
         sourceId: startNodeId,
         targetId: endNodeId,
@@ -957,15 +889,15 @@ export class FlowNodeUtil {
    * @throws DataConsistencyException 数据一致性异常
    */
   public static makeNodeTaskScript(
-    links: FlowLink[],
-    ports: FlowPort[],
-    nodes: FlowNode[],
+    links: VsLink[],
+    ports: VsPort[],
+    nodes: VsNode[],
     nodeId2NodeName: Map<string, string>
   ): Map<string, string> {
     const nodeId2Script = new Map<string, string>();
 
     // 边的起始节点ID-边列表
-    const nodeId2StartLinks = new Map<string, FlowLink[]>();
+    const nodeId2StartLinks = new Map<string, VsLink[]>();
     links.forEach(link => {
       if (!nodeId2StartLinks.has(link.sourceId)) {
         nodeId2StartLinks.set(link.sourceId, []);
@@ -974,7 +906,7 @@ export class FlowNodeUtil {
     });
 
     // 端口的节点ID-端口列表(只包括输出端口)
-    const nodeId2OutputPorts = new Map<string, FlowPort[]>();
+    const nodeId2OutputPorts = new Map<string, VsPort[]>();
     ports.forEach(port => {
       if (!nodeId2OutputPorts.has(port.nodeId)) {
         nodeId2OutputPorts.set(port.nodeId, []);
@@ -983,7 +915,7 @@ export class FlowNodeUtil {
     });
 
     // 节点ID-节点(只包括原子节点)
-    const nodeId2node = new Map<string, FlowNode>();
+    const nodeId2node = new Map<string, VsNode>();
     nodes.forEach(node => nodeId2node.set(node.id, node));
 
     // 根据节点来进行遍历,生成任务脚本内容
@@ -1006,8 +938,8 @@ export class FlowNodeUtil {
         FlowNodeUtil.validateEndNodeType(curNodeId, nodeId2node, nodeId2NodeName);
         // 校验终止节点的端口数量
         FlowNodeUtil.validateEndNodePorts(curNodeId, curOutputPorts, nodeId2NodeName);
-        // 终止节点只会有1个输出端口
-        curNodeTaskScript = FlowNodeUtil.makeNodeTaskScriptWhenSingleOutput(
+        // 终止节点只会有1个输出端口         makeNodeTaskScripWhenSingleOutput
+        curNodeTaskScript = FlowNodeUtil.makeNodeTaskScripWhenSingleOutput(
           curNodeId, curOutputPorts, nodeId2NodeName
         );
       } else {
@@ -1017,9 +949,9 @@ export class FlowNodeUtil {
 
         // 不能使用节点的端口数量来决定生成脚本
         // 因为当ROUTE节点任务类型时，我们仍然可以创建只有一个分支
-        if (curNode.taskType !== NodeTaskType.ROUTE) {
+        if (curNode.taskType !== VsNodeTaskTypeEnum.ROUTE) {
           // 单个输出端口节点类型
-          curNodeTaskScript = FlowNodeUtil.makeNodeTaskScriptWhenSingleOutput(
+          curNodeTaskScript = FlowNodeUtil.makeNodeTaskScripWhenSingleOutput(
             curNodeId, curOutputPorts, nodeId2NodeName
           );
         } else {
@@ -1047,9 +979,9 @@ export class FlowNodeUtil {
    * @returns 节点任务脚本
    * @throws DataConsistencyException 数据一致性异常
    */
-  public static makeNodeTaskScriptWhenSingleOutput(
+  public static makeNodeTaskScripWhenSingleOutput(
     curNodeId: string,
-    curPorts: FlowPort[],
+    curPorts: VsPort[],
     nodeId2NodeName: Map<string, string>
   ): string {
     if (!curPorts || curPorts.length !== 1) {
@@ -1061,7 +993,7 @@ export class FlowNodeUtil {
     const curPort = curPorts[0];
     const propScript = FlowNodeUtil.getScriptFromPort(curPort);
     const callScript = FlowNodeUtil.SINGLE_OUTPUT_CALL_METHOD_TEMPLATE.replace('%s', propScript);
-    const additionDefineScript = FlowNodeUtil.getAdditionDefineFromPort(curPort);
+    const additionDefineScript = FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
 
     return FlowNodeUtil.generateFlowNodeTaskSourceCodeWhenSingleOutput(
       curNodeId, callScript, additionDefineScript
@@ -1079,8 +1011,8 @@ export class FlowNodeUtil {
    */
   public static makeNodeTaskScriptWhenMultiOutput(
     curNodeId: string,
-    curPorts: FlowPort[],
-    curLinks: FlowLink[],
+    curPorts: VsPort[],
+    curLinks: VsLink[],
     nodeId2NodeName: Map<string, string>
   ): string {
     // 多个输出端口,需要用户确保只有1个端口为true
@@ -1131,7 +1063,7 @@ export class FlowNodeUtil {
       const curCallScript = FlowNodeUtil.generatePortCallScriptSourceCode(portId, curLink.targetId);
       callScripts[i] = curCallScript;
 
-      const curAdditionDefineScript = FlowNodeUtil.getAdditionDefineFromPort(curPort);
+      const curAdditionDefineScript = FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
       additionDefineScripts[i] = curAdditionDefineScript;
     }
 
@@ -1164,7 +1096,7 @@ export class FlowNodeUtil {
    * @returns 脚本内容
    * @throws DataConsistencyException 数据一致性异常
    */
-  public static getScriptFromPort(port: FlowPort): string {
+  public static getScriptFromPort(port: VsPort): string {
     try {
       const properties = JSON.parse(port.properties) as PortProperties;
       const script = properties.script;
@@ -1179,7 +1111,7 @@ export class FlowNodeUtil {
    * @param port 流程端口
    * @returns 附加定义内容
    */
-  public static getAdditionDefineFromPort(port: FlowPort): string {
+  public static getAdditionDefineFromVsPort(port: VsPort): string {
     try {
       const properties = JSON.parse(port.properties) as PortProperties;
       const additionDefine = properties.additionDefine;
@@ -1224,7 +1156,7 @@ export class FlowNodeUtil {
     start: FlowNodeTask,
     msgId: string,
     contextPath: string,
-    method: HttpMethod,
+    method: VsHttpMethodEnum,
     systemHeader: Map<string, string>
   ): Promise<FlowNodeTask> {
     let loopCnt = 0;
@@ -1351,7 +1283,7 @@ export class FlowNodeUtil {
     nodeId2NodeName: Map<string, string>
   ): void {
     const endNode = atomicNodeId2node.get(endNodeId);
-    if (!endNode || endNode.getTaskType() !== VsNodeTaskTypeEnum.END) {
+    if (!endNode || endNode.taskType !== VsNodeTaskTypeEnum.END) {
       throw new VsDataConsistencyException(
         `图需以响应处理脚本结束,当前图结束节点[${nodeId2NodeName.get(endNodeId) || ''}]不是响应处理脚本,请完善图`
       );
@@ -1369,7 +1301,7 @@ export class FlowNodeUtil {
       return atomicNodes;
     }
     for (const vsNode of nodes) {
-      if (vsNode.getViewType() === VsNodeViewTypeEnum.ATOMIC) {
+      if (vsNode.viewType === VsNodeViewTypeEnum.ATOMIC) {
         atomicNodes.push(vsNode);
       }
     }
@@ -1382,14 +1314,14 @@ export class FlowNodeUtil {
    * @returns 脚本内容
    */
   public static getScriptFromVsPort(vsPort: VsPort): string {
-    const properties = vsPort.getProperties();
+    const properties = vsPort.properties;
     const vsPortProp = JSON.parse(properties) as VsPortProp;
 
     let script: string | null = null;
     try {
       script = vsPortProp.script;
     } catch (error) {
-      throw new VsDataConsistencyException(`无法获取脚本属性,端口ID=${vsPort.getId()}`);
+      throw new VsDataConsistencyException(`无法获取脚本属性,端口ID=${vsPort.id}`);
     }
 
     if (!script || script.trim() === '') {
@@ -1399,22 +1331,6 @@ export class FlowNodeUtil {
     }
   }
 
-  /**
-   * 从VsPort获取附加定义
-   * @param vsPort 端口对象
-   * @returns 附加定义内容
-   */
-  public static getAdditionDefineFromVsPort(vsPort: VsPort): string {
-    const properties = vsPort.getProperties();
-    const vsPortProp = JSON.parse(properties) as VsPortProp;
-    const additionDefine = vsPortProp.additionDefine;
-
-    if (!additionDefine || additionDefine.trim() === '') {
-      return '';
-    } else {
-      return additionDefine;
-    }
-  }
 
   /**
    * 创建运行时流程
@@ -1434,14 +1350,14 @@ export class FlowNodeUtil {
     vsExecFlow: VsExecFlow,
     queue: any // 这里需要根据实际的队列类型进行调整
   ): FlowNodeTask {
-    const flow = vsExecFlow.getFlow();
-    const nodeId2Class = vsExecFlow.getNodeId2Class();
-    const nodeId2NodeName = vsExecFlow.getNodeId2NodeName();
-    const nodeId2Node = vsExecFlow.getNodeId2Node();
-    const nodeId2CircuitBreaker = vsExecFlow.getNodeId2CircuitBreaker();
-    const nodeId2GeneralDataConvMapping = vsExecFlow.getNodeId2GeneralDataConvMapping();
+    const flow = vsExecFlow.flow;
+    const nodeId2Class = vsExecFlow.nodeId2Class;
+    const nodeId2NodeName = vsExecFlow.nodeId2NodeName;
+    const nodeId2Node = vsExecFlow.nodeId2Node;
+    const nodeId2CircuitBreaker = vsExecFlow.nodeId2CircuitBreaker;
+    const nodeId2GeneralDataConvMapping = vsExecFlow.nodeId2GeneralDataConvMapping;
     const flowCtx = new Map<string, any>();
-    const ctx = vsExecFlow.getCtx();
+    const ctx = vsExecFlow.ctx;
 
     const nodeIdsMap = FlowNodeUtil.getNodeIdsMap(flow, nodeId2Node);
 
@@ -1451,7 +1367,7 @@ export class FlowNodeUtil {
       throw new VsDataConsistencyException('空节点,无法构造执行流');
     }
 
-    const links = flow.getLinks();
+    const links = flow.links;
     if (!links || links.size === 0) {
       throw new VsDataConsistencyException('空边,无法构造执行流');
     }
@@ -1477,7 +1393,7 @@ export class FlowNodeUtil {
       flowNodeTask.setNodeName(nodeId2NodeName.get(nodeId) || '-');
 
       const node = nodeId2Node.get(nodeId);
-      flowNodeTask.setTaskType(node ? node.getTaskType() : null);
+      flowNodeTask.setTaskType(node ? node.taskType : null);
       flowNodeTask.setDataConvRT(nodeId2GeneralDataConvMapping.get(nodeId));
       flowNodeTask.setFlowCtx(flowCtx);
       flowNodeTask.setCtx(ctx);
@@ -1488,8 +1404,8 @@ export class FlowNodeUtil {
 
     // 根据连接创建依赖树
     for (const link of links) {
-      const startNodeId = link.getSourceId();
-      const endNodeId = link.getTargetId();
+      const startNodeId = link.sourceId;
+      const endNodeId = link.targetId;
       const startNodeTask = nodeid2nodetask.get(startNodeId);
       const endNodeTask = nodeid2nodetask.get(endNodeId);
 
@@ -1639,32 +1555,6 @@ export class FlowNodeUtil {
   }
 }
 
-// 相关的枚举和接口定义
-export enum VsNodeTaskTypeEnum {
-  CONTEXT = 'CONTEXT',
-  END = 'END',
-  ROUTE = 'ROUTE',
-  HTTP = 'HTTP',
-  DATA_CONVERT = 'DATA_CONVERT'
-}
-
-export enum VsNodeViewTypeEnum {
-  ATOMIC = 'ATOMIC',
-  COMPOSITE = 'COMPOSITE'
-}
-
-export enum VsPortTypeEnum {
-  INPUT_PORT = 'INPUT_PORT',
-  OUTPUT_PORT = 'OUTPUT_PORT'
-}
-
-export enum HttpMethod {
-  GET = 'GET',
-  POST = 'POST',
-  PUT = 'PUT',
-  DELETE = 'DELETE',
-  PATCH = 'PATCH'
-}
 
 // 相关的类和接口定义
 export interface VsPortProp {
@@ -1677,63 +1567,4 @@ export class VsDataConsistencyException extends Error {
     super(message);
     this.name = 'VsDataConsistencyException';
   }
-}
-
-
-// 这些类需要根据实际的业务逻辑进行实现
-export abstract class VsNode {
-  abstract getId(): string;
-  abstract getTaskType(): VsNodeTaskTypeEnum;
-  abstract getViewType(): VsNodeViewTypeEnum;
-}
-
-export abstract class VsPort {
-  abstract getId(): string;
-  abstract getNodeId(): string;
-  abstract getType(): VsPortTypeEnum;
-  abstract getProperties(): string;
-  abstract setType(type: VsPortTypeEnum): void;
-  abstract deepCopy(): VsPort;
-}
-
-export abstract class VsLink {
-  abstract getId(): string;
-  abstract getSourceId(): string;
-  abstract getTargetId(): string;
-  abstract getSourcePort(): string;
-  abstract getTargetPort(): string;
-  abstract setId(id: string): void;
-  abstract setSourceId(sourceId: string): void;
-  abstract setTargetId(targetId: string): void;
-  abstract setSourcePort(sourcePort: string): void;
-  abstract setTargetPort(targetPort: string): void;
-}
-
-export interface Flow {
-  getNodes(): Set<FlowNode>;
-  getLinks(): Set<FlowLink>;
-  setNodes(nodes: Set<FlowNode>): void;
-  setLinks(links: Set<FlowLink>): void;
-}
-
-export interface FlowNode {
-  getNodeId(): string;
-  setNodeId(nodeId: string): void;
-}
-
-export interface FlowLink {
-  getSourceId(): string;
-  getTargetId(): string;
-  setSourceId(sourceId: string): void;
-  setTargetId(targetId: string): void;
-}
-
-export interface VsExecFlow {
-  getFlow(): Flow;
-  getNodeId2Class(): Map<string, any>;
-  getNodeId2NodeName(): Map<string, string>;
-  getNodeId2Node(): Map<string, VsNode>;
-  getNodeId2CircuitBreaker(): Map<string, any>;
-  getNodeId2GeneralDataConvMapping(): Map<string, any>;
-  getCtx(): any;
 }

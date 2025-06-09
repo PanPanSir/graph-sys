@@ -1,10 +1,10 @@
 import { VsPortTypeEnum } from '@app/enum/port.enum';
-import { VsApiTypeEnum } from '../../common/enums/data.mapping.enum';
+import { VsApiTypeEnum } from '@app/enum//data.mapping.enum';
 import {
   VsNodeTaskTypeEnum,
   VsNodeViewTypeEnum,
   VsVirtualNodeTypeEnum,
-} from '../../common/enums/node.enum';
+} from '@app/enum//node.enum';
 import { VsLinkProp } from '../../link/entities/link.prop.entity';
 import { VsNodeProp } from '../../node/entities/node.prop.entity';
 import { VsPortProp } from '../../port/entities/port.prop.entity';
