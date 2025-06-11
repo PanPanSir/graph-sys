@@ -1,3 +1,3 @@
 export interface FlowNode {
-	nodeId: string;
+  nodeId: string;
 }

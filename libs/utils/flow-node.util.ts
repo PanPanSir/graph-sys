@@ -1,31 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 import * as vm from 'vm';
-import * as crypto from 'crypto';
-import { FlowNodeTask } from './flow-node-task';
+import { FlowNodeTask } from '../vs/flow-node-task';
 import { VsNodeViewTypeEnum, VsNodeTaskTypeEnum } from '@app/enum/node.enum';
-import { VsNode } from '../../node/entities/node.entity';
-import { VsLink } from '../../link/entities/link.entity';
-import { VsPort } from '../../port/entities/port.entity';
-import { Flow } from './flow';
-import { FlowNode } from './flow-node';
-import { FlowLink } from './flow-link';
+import { Flow } from '../vs/flow';
+import { FlowNode } from '../vs/flow-node';
+import { FlowLink } from '../vs/flow-link';
 import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
-import { VsExecFlow } from './Vs-exec-flow';
-
+import { VsExecFlow } from '../vs/Vs-exec-flow';
+import { VsLink } from 'apps/vs-adapter/src/link/entities/link.entity';
+import { VsNode } from 'apps/vs-adapter/src/node/entities/node.entity';
+import { VsPort } from 'apps/vs-adapter/src/port/entities/port.entity';
 
 /**
  * 路由元数据源类型枚举
  * 对应Java中的VsPortRouteMetaSourceTypeEnum
  */
 export enum RouteMetaSourceType {
-  REQ_HEADER = 'REQ_HEADER',   // 请求头
-  REQ_PARAM = 'REQ_PARAM'      // 请求参数
+  REQ_HEADER = 'REQ_HEADER', // 请求头
+  REQ_PARAM = 'REQ_PARAM', // 请求参数
 }
-
-
-
 
 /**
  * 端口属性接口
@@ -233,7 +227,7 @@ export class FlowNodeUtil {
    */
   private static readonly NODE_HTTP_PATH_VAL_EXP_TEMPLATE = `
     // 获取路径变量值
-    (this.requestParams.get('%s') || '%s')
+    (this.requestParams['%s'] || %s)
   `;
 
   /**
@@ -251,7 +245,7 @@ export class FlowNodeUtil {
    */
   private static readonly NODE_HTTP_PATH_REPLACE_METHOD_TEMPLATE = `
     // 路径变量替换方法
-    private replacePathVariables(url: string): string {
+    private changeUrlWhenPathVariable(url: string): string {
       %s
       return url;
     }
@@ -264,16 +258,75 @@ export class FlowNodeUtil {
   private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
     // HTTP POST请求执行
     try {
-      const url = this.replacePathVariables('%s');
-      const headers = Object.fromEntries(this.requestHeaders);
-      const response = await this.httpService.post(url, this.inputRequestBody, {
+      // changeUrlWhenPathVariable方法处理URL中的路径变量，%s是占位符
+      let url = this.changeUrlWhenPathVariable("%s");
+      const pathParams = this.requestParams || new Map();
+
+      // 替换路径中的变量，如 /api/users/{id} -> /api/users/123
+      for (const [key, value] of pathParams) {
+        const placeholder = '{' + key + '}';
+        if (url.includes(placeholder)) {
+          url = url.replace(new RegExp('\\{' + key + '\\}', 'g'), value || '');
+        }
+      }
+
+      // 组合所有参数
+      const allParams = new Map();
+
+      // 添加请求参数
+      if (this.requestParams) {
+        for (const [key, value] of this.requestParams) {
+          allParams.set(key, value);
+        }
+      }
+
+      // 添加输入参数
+      if (this.inputParams) {
+        for (const [key, value] of this.inputParams) {
+          allParams.set(key, value);
+        }
+      }
+
+      // 设置请求头
+      const headers = {
+        'Content-Type': 'application/json',
+        ...Object.fromEntries(this.requestHeaders || new Map())
+      };
+
+      // 准备请求体数据
+      const requestBody = Object.fromEntries(allParams);
+
+      // 执行HTTP POST请求
+      const response = await this.httpService.post(url, requestBody, {
         headers,
-        timeout: %d
+        timeout: %d // 超时时间占位符
       }).toPromise();
-      this.outputResponseBody = JSON.stringify(response.data);
+
+      // 处理响应
+      if (response && response.data) {
+        this.outputResponseBody = JSON.stringify(response.data);
+        this.logger.info('HTTP POST请求成功执行');
+      } else {
+        this.outputResponseBody = '';
+        this.logger.warn('HTTP POST请求返回空响应');
+      }
+
     } catch (error) {
-      this.logger.error('HTTP POST请求失败:', error);
-      throw error;
+      // 错误处理和熔断器逻辑
+      this.logger.error('HTTP POST请求执行失败:', error);
+
+      // 简单的熔断器逻辑
+      if (this.failureCount === undefined) {
+        this.failureCount = 0;
+      }
+      this.failureCount++;
+
+      if (this.failureCount >= 3) {
+        this.logger.error('请求失败次数过多，触发熔断器');
+        this.outputResponseBody = JSON.stringify({ error: '服务暂时不可用' });
+      } else {
+        this.outputResponseBody = JSON.stringify({ error: error.message || '请求失败' });
+      }
     }
   `;
 
@@ -284,7 +337,7 @@ export class FlowNodeUtil {
   private static readonly NODE_HTTP_TASK_GET_EXEC_TEMPLATE = `
     // HTTP GET请求执行
     try {
-      const url = this.replacePathVariables('%s');
+      const url = this.changeUrlWhenPathVariable('%s');
       const headers = Object.fromEntries(this.requestHeaders);
       const params = Object.fromEntries(this.requestParams);
       const response = await this.httpService.get(url, {
@@ -365,9 +418,12 @@ export class FlowNodeUtil {
    * @param rightV 右值表达式
    * @returns 生成的代码
    */
-  public static generateRouteDoubleCompareSourceCode(leftV: string, cmp: string, rightV: string): string {
-    return FlowNodeUtil.ROUTE_DOUBLE_CMP_TEMPLATE
-      .replace('%s', leftV)
+  public static generateRouteDoubleCompareSourceCode(
+    leftV: string,
+    cmp: string,
+    rightV: string,
+  ): string {
+    return FlowNodeUtil.ROUTE_DOUBLE_CMP_TEMPLATE.replace('%s', leftV)
       .replace('%s', rightV)
       .replace('%s', cmp);
   }
@@ -379,9 +435,12 @@ export class FlowNodeUtil {
    * @param rightV 右值表达式
    * @returns 生成的代码
    */
-  public static generateRouteLongCompareSourceCode(leftV: string, cmp: string, rightV: string): string {
-    return FlowNodeUtil.ROUTE_LONG_CMP_TEMPLATE
-      .replace('%s', leftV)
+  public static generateRouteLongCompareSourceCode(
+    leftV: string,
+    cmp: string,
+    rightV: string,
+  ): string {
+    return FlowNodeUtil.ROUTE_LONG_CMP_TEMPLATE.replace('%s', leftV)
       .replace('%s', rightV)
       .replace('%s', cmp);
   }
@@ -393,9 +452,12 @@ export class FlowNodeUtil {
    * @param rightV 右值表达式
    * @returns 生成的代码
    */
-  public static generateRouteStringCompareSourceCode(leftV: string, cmp: string, rightV: string): string {
-    return FlowNodeUtil.ROUTE_STRING_CMP_TEMPLATE
-      .replace('%s', leftV)
+  public static generateRouteStringCompareSourceCode(
+    leftV: string,
+    cmp: string,
+    rightV: string,
+  ): string {
+    return FlowNodeUtil.ROUTE_STRING_CMP_TEMPLATE.replace('%s', leftV)
       .replace('%s', rightV)
       .replace('%s', cmp);
   }
@@ -407,9 +469,12 @@ export class FlowNodeUtil {
    * @param rightV 右值表达式
    * @returns 生成的代码
    */
-  public static generateRouteDatetimeCompareSourceCode(leftV: string, cmp: string, rightV: string): string {
-    return FlowNodeUtil.ROUTE_DATETIME_CMP_TEMPLATE
-      .replace('%s', leftV)
+  public static generateRouteDatetimeCompareSourceCode(
+    leftV: string,
+    cmp: string,
+    rightV: string,
+  ): string {
+    return FlowNodeUtil.ROUTE_DATETIME_CMP_TEMPLATE.replace('%s', leftV)
       .replace('%s', rightV)
       .replace('%s', cmp);
   }
@@ -429,10 +494,14 @@ export class FlowNodeUtil {
    * @param value 请求头值
    * @returns 生成的代码
    */
-  public static generateReqHeaderSetSourceCode(key: string, value: string): string {
-    return FlowNodeUtil.REQ_HEADER_SET_TEMPLATE
-      .replace('%s', key)
-      .replace('%s', value);
+  public static generateReqHeaderSetSourceCode(
+    key: string,
+    value: string,
+  ): string {
+    return FlowNodeUtil.REQ_HEADER_SET_TEMPLATE.replace('%s', key).replace(
+      '%s',
+      value,
+    );
   }
 
   /**
@@ -450,10 +519,14 @@ export class FlowNodeUtil {
    * @param value 响应头值
    * @returns 生成的代码
    */
-  public static generateRspHeaderSetSourceCode(key: string, value: string): string {
-    return FlowNodeUtil.RSP_HEADER_SET_TEMPLATE
-      .replace('%s', key)
-      .replace('%s', value);
+  public static generateRspHeaderSetSourceCode(
+    key: string,
+    value: string,
+  ): string {
+    return FlowNodeUtil.RSP_HEADER_SET_TEMPLATE.replace('%s', key).replace(
+      '%s',
+      value,
+    );
   }
 
   /**
@@ -462,10 +535,14 @@ export class FlowNodeUtil {
    * @param boolMethodImpl 布尔方法实现
    * @returns 生成的代码
    */
-  public static generatePortBoolScriptSourceCode(methodName: string, boolMethodImpl: string): string {
-    return FlowNodeUtil.MULTI_PORT_BOOL_METHOD_TEMPLATE
-      .replace('%s', methodName)
-      .replace('%s', boolMethodImpl);
+  public static generatePortBoolScriptSourceCode(
+    methodName: string,
+    boolMethodImpl: string,
+  ): string {
+    return FlowNodeUtil.MULTI_PORT_BOOL_METHOD_TEMPLATE.replace(
+      '%s',
+      methodName,
+    ).replace('%s', boolMethodImpl);
   }
 
   /**
@@ -474,10 +551,14 @@ export class FlowNodeUtil {
    * @param activateNodeId 激活节点ID
    * @returns 生成的代码
    */
-  public static generatePortCallScriptSourceCode(methodName: string, activateNodeId: string): string {
-    return FlowNodeUtil.MULTI_PORT_CALL_METHOD_TEMPLATE
-      .replace('%s', methodName)
-      .replace('%s', activateNodeId);
+  public static generatePortCallScriptSourceCode(
+    methodName: string,
+    activateNodeId: string,
+  ): string {
+    return FlowNodeUtil.MULTI_PORT_CALL_METHOD_TEMPLATE.replace(
+      '%s',
+      methodName,
+    ).replace('%s', activateNodeId);
   }
 
   /**
@@ -486,24 +567,49 @@ export class FlowNodeUtil {
    * @param defaultValue 默认值
    * @returns 生成的表达式
    */
-  public static generatePathValExp(pathVarName: string, defaultValue: string): string {
-    return FlowNodeUtil.NODE_HTTP_PATH_VAL_EXP_TEMPLATE
-      .replace('%s', pathVarName)
-      .replace('%s', defaultValue);
+  public static generatePathValExp(
+    pathVarName: string,
+    defaultValue: string,
+  ): string {
+    // private static readonly NODE_HTTP_PATH_VAL_EXP_TEMPLATE = `
+    //   // 获取路径变量值
+    //   (this.requestParams['%s'] || %s)
+    // `;
+    return FlowNodeUtil.NODE_HTTP_PATH_VAL_EXP_TEMPLATE.replace(
+      '%s',
+      pathVarName,
+    ).replace('%s', defaultValue);
   }
 
   /**
    * 生成路径替换语句
    * @param pathVarName 路径变量名
    * @param defaultValue 默认值
-   * @returns 生成的语句
+   * @returns 生成的语句：url.replace('{userId}', (this.requestParams['userId'] || defaultValue));
    */
-  public static generatePathReplaceStatement(pathVarName: string, defaultValue: string): string {
-    const pathValExp = FlowNodeUtil.generatePathValExp(pathVarName, defaultValue);
+  //   这个函数通常用于处理RESTful API的路径参数，比如：
+  // - 原始URL： https://api.example.com/users/{userId}/profile
+  // - 生成的代码会将 {userId} 替换为实际的用户ID
+  // - 如果请求参数中有 userId=123 ，最终URL变成： https://api.example.com/users/123/profile
+  // - 如果请求参数中没有 userId ，则使用默认值： https://api.example.com/users/defaultValue/profile
+  public static generatePathReplaceStatement(
+    pathVarName: string,
+    defaultValue: string,
+  ): string {
+    // 这个表达式是获取路径值的
+    const pathValExp = FlowNodeUtil.generatePathValExp(
+      pathVarName,
+      defaultValue,
+    );
     const pathVarBracket = `{${pathVarName}}`;
-    return FlowNodeUtil.NODE_HTTP_PATH_REPLACE_TEMPLATE
-      .replace('%s', pathVarBracket)
-      .replace('%s', pathValExp);
+    // private static readonly NODE_HTTP_PATH_REPLACE_TEMPLATE = `
+    //   // 替换路径变量
+    //   url = url.replace('%s', %s);
+    // `;
+    return FlowNodeUtil.NODE_HTTP_PATH_REPLACE_TEMPLATE.replace(
+      '%s',
+      pathVarBracket,
+    ).replace('%s', pathValExp);
   }
 
   /**
@@ -512,7 +618,10 @@ export class FlowNodeUtil {
    * @returns 生成的方法定义
    */
   public static generatePathReplaceMethodDefine(methodBody: string): string {
-    return FlowNodeUtil.NODE_HTTP_PATH_REPLACE_METHOD_TEMPLATE.replace('%s', methodBody);
+    return FlowNodeUtil.NODE_HTTP_PATH_REPLACE_METHOD_TEMPLATE.replace(
+      '%s',
+      methodBody,
+    );
   }
 
   /**
@@ -521,10 +630,14 @@ export class FlowNodeUtil {
    * @param requestTimeout 请求超时时间
    * @returns 生成的代码
    */
-  public static generateNodeHttpTaskPostScriptSourceCode(url: string, requestTimeout: number): string {
-    return FlowNodeUtil.NODE_HTTP_TASK_POST_EXEC_TEMPLATE
-      .replace('%s', url)
-      .replace('%d', requestTimeout.toString());
+  public static generateNodeHttpTaskPostScriptSourceCode(
+    url: string,
+    requestTimeout: number,
+  ): string {
+    return FlowNodeUtil.NODE_HTTP_TASK_POST_EXEC_TEMPLATE.replace(
+      '%s',
+      url,
+    ).replace('%d', requestTimeout.toString());
   }
 
   /**
@@ -533,10 +646,14 @@ export class FlowNodeUtil {
    * @param requestTimeout 请求超时时间
    * @returns 生成的代码
    */
-  public static generateNodeHttpTaskGetScriptSourceCode(url: string, requestTimeout: number): string {
-    return FlowNodeUtil.NODE_HTTP_TASK_GET_EXEC_TEMPLATE
-      .replace('%s', url)
-      .replace('%d', requestTimeout.toString());
+  public static generateNodeHttpTaskGetScriptSourceCode(
+    url: string,
+    requestTimeout: number,
+  ): string {
+    return FlowNodeUtil.NODE_HTTP_TASK_GET_EXEC_TEMPLATE.replace(
+      '%s',
+      url,
+    ).replace('%d', requestTimeout.toString());
   }
 
   /**
@@ -549,11 +666,10 @@ export class FlowNodeUtil {
   public static generateFlowNodeTaskSourceCodeWhenSingleOutput(
     nodeId: string,
     callScript: string,
-    additionDefineScript: string
+    additionDefineScript: string,
   ): string {
     const className = `FlowNode_${nodeId}`;
-    return FlowNodeUtil.FLOW_NODES_SCRIPT_TEMPLATE
-      .replace('%s', className)
+    return FlowNodeUtil.FLOW_NODES_SCRIPT_TEMPLATE.replace('%s', className)
       .replace('%s', callScript)
       .replace('%s', '')
       .replace('%s', additionDefineScript);
@@ -571,11 +687,10 @@ export class FlowNodeUtil {
     nodeId: string,
     callScript: string,
     boolExp: string,
-    additionDefineScript: string
+    additionDefineScript: string,
   ): string {
     const className = `FlowNode_${nodeId}`;
-    return FlowNodeUtil.FLOW_NODES_SCRIPT_TEMPLATE
-      .replace('%s', className)
+    return FlowNodeUtil.FLOW_NODES_SCRIPT_TEMPLATE.replace('%s', className)
       .replace('%s', callScript)
       .replace('%s', boolExp)
       .replace('%s', additionDefineScript);
@@ -591,13 +706,17 @@ export class FlowNodeUtil {
    */
   public static makeStFlow(links: VsLink[], nodes: VsNode[]): Flow {
     const flow: Flow = {
-      links: new Set(links.map(e => ({
-        sourceId: e.sourceId,
-        targetId: e.targetId,
-      }))),
-      nodes: new Set(nodes.map(n => ({
-        nodeId: n.id,
-      })))
+      links: new Set(
+        links.map((e) => ({
+          sourceId: e.sourceId,
+          targetId: e.targetId,
+        })),
+      ),
+      nodes: new Set(
+        nodes.map((n) => ({
+          nodeId: n.id,
+        })),
+      ),
     };
     return flow;
   }
@@ -612,7 +731,7 @@ export class FlowNodeUtil {
    */
   public static getNodeIdsMap(
     flow: Flow,
-    nodeId2node: Map<string, VsNode>
+    nodeId2node: Map<string, VsNode>,
   ): Map<string, string[]> {
     const nodes = Array.from(flow.nodes);
     const links = Array.from(flow.links);
@@ -622,7 +741,7 @@ export class FlowNodeUtil {
     const endNodeIdSet = new Set<string>();
 
     if (links.length > 0) {
-      links.forEach(link => {
+      links.forEach((link) => {
         startNodeIdSet.add(link.sourceId);
         endNodeIdSet.add(link.targetId);
       });
@@ -630,15 +749,23 @@ export class FlowNodeUtil {
 
     // 获取Node节点集合
     const allNodeIdSet = new Set<string>();
-    startNodeIdSet.forEach(id => allNodeIdSet.add(id));
-    endNodeIdSet.forEach(id => allNodeIdSet.add(id));
+    startNodeIdSet.forEach((id) => allNodeIdSet.add(id));
+    endNodeIdSet.forEach((id) => allNodeIdSet.add(id));
 
     // 获取流程的起始和目标节点
     const startNodeId = FlowNodeUtil.getStartNodeId(
-      allNodeIdSet, endNodeIdSet, new Set(nodes), new Set(links), nodeId2node
+      allNodeIdSet,
+      endNodeIdSet,
+      new Set(nodes),
+      new Set(links),
+      nodeId2node,
     );
     const endNodeIds = FlowNodeUtil.getEndNodeIds(
-      allNodeIdSet, startNodeIdSet, new Set(nodes), new Set(links), nodeId2node
+      allNodeIdSet,
+      startNodeIdSet,
+      new Set(nodes),
+      new Set(links),
+      nodeId2node,
     );
 
     const result = new Map<string, string[]>();
@@ -664,7 +791,7 @@ export class FlowNodeUtil {
     endNodeSet: Set<string>,
     nodes: Set<FlowNode>,
     links: Set<FlowLink>,
-    nodeId2node: Map<string, VsNode>
+    nodeId2node: Map<string, VsNode>,
   ): string[] {
     const startNodeId: string[] = []; // 大小必须等于1
 
@@ -699,7 +826,7 @@ export class FlowNodeUtil {
     startNodeSet: Set<string>,
     nodes: Set<FlowNode>,
     links: Set<FlowLink>,
-    nodeId2node: Map<string, VsNode>
+    nodeId2node: Map<string, VsNode>,
   ): string[] {
     const endNodeIds: string[] = []; // 大小必须 >= 1
 
@@ -713,12 +840,13 @@ export class FlowNodeUtil {
     }
 
     if (endNodeIds.length === 0) {
-      throw new DataConsistencyException('不存在响应处理脚本或未以响应处理脚本结束');
+      throw new DataConsistencyException(
+        '不存在响应处理脚本或未以响应处理脚本结束',
+      );
     }
 
     return endNodeIds;
   }
-
 
   /**
    * 获取编译后的脚本
@@ -727,7 +855,10 @@ export class FlowNodeUtil {
    * @returns 编译后的脚本
    * @throws ScriptCompileException 脚本编译异常
    */
-  public static async getCompiledScript(nodeId: string, script: string): Promise<string> {
+  public static async getCompiledScript(
+    nodeId: string,
+    script: string,
+  ): Promise<string> {
     try {
       // 在Node.js环境中，我们可以直接返回脚本内容
       // 因为TypeScript/JavaScript不需要像Java那样编译成字节码
@@ -739,13 +870,13 @@ export class FlowNodeUtil {
         exports,
         module,
         __filename: `node_${nodeId}.ts`,
-        __dirname: process.cwd()
+        __dirname: process.cwd(),
       });
 
       // 尝试编译脚本以检查语法错误
       vm.runInContext(`(function() { ${script} })()`, context, {
         filename: `node_${nodeId}.ts`,
-        timeout: 5000
+        timeout: 5000,
       });
 
       return script;
@@ -765,7 +896,7 @@ export class FlowNodeUtil {
   public static getActualOutputPorts(
     ports: VsPort[],
     nodeId2node: Map<string, VsNode>,
-    endNodeId2node: Map<string, VsNode>
+    endNodeId2node: Map<string, VsNode>,
   ): VsPort[] {
     const actualOutputPorts: VsPort[] = [];
     if (!ports) {
@@ -814,7 +945,7 @@ export class FlowNodeUtil {
     nodeId2node: Map<string, VsNode>,
     portId2Port: Map<string, VsPort>,
     sourcePort2Link: Map<string, VsLink>,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): VsLink[] {
     const actualLinks: VsLink[] = [];
     if (!links) {
@@ -858,7 +989,7 @@ export class FlowNodeUtil {
           const tempLink = sourcePort2Link.get(targetPort);
           if (!tempLink) {
             throw new DataConsistencyException(
-              `以节点[${nodeId2NodeName.get(startNodeId) || ''}]开始的路径上存在端口未连接边`
+              `以节点[${nodeId2NodeName.get(startNodeId) || ''}]开始的路径上存在端口未连接边`,
             );
           }
           targetPort = tempLink.targetPort;
@@ -871,7 +1002,7 @@ export class FlowNodeUtil {
         sourceId: startNodeId,
         targetId: endNodeId,
         sourcePort: sourcePort,
-        targetPort: targetPort
+        targetPort: targetPort,
       };
       actualLinks.push(actualLink);
     }
@@ -892,13 +1023,13 @@ export class FlowNodeUtil {
     links: VsLink[],
     ports: VsPort[],
     nodes: VsNode[],
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): Map<string, string> {
     const nodeId2Script = new Map<string, string>();
 
     // 边的起始节点ID-边列表
     const nodeId2StartLinks = new Map<string, VsLink[]>();
-    links.forEach(link => {
+    links.forEach((link) => {
       if (!nodeId2StartLinks.has(link.sourceId)) {
         nodeId2StartLinks.set(link.sourceId, []);
       }
@@ -907,7 +1038,7 @@ export class FlowNodeUtil {
 
     // 端口的节点ID-端口列表(只包括输出端口)
     const nodeId2OutputPorts = new Map<string, VsPort[]>();
-    ports.forEach(port => {
+    ports.forEach((port) => {
       if (!nodeId2OutputPorts.has(port.nodeId)) {
         nodeId2OutputPorts.set(port.nodeId, []);
       }
@@ -916,12 +1047,14 @@ export class FlowNodeUtil {
 
     // 节点ID-节点(只包括原子节点)
     const nodeId2node = new Map<string, VsNode>();
-    nodes.forEach(node => nodeId2node.set(node.id, node));
+    nodes.forEach((node) => nodeId2node.set(node.id, node));
 
     // 根据节点来进行遍历,生成任务脚本内容
     const flow = FlowNodeUtil.makeStFlow(links, nodes);
     const nodeIdsMap = FlowNodeUtil.getNodeIdsMap(flow, nodeId2node);
-    const waitCompileNodeIds = nodeIdsMap.get(FlowNodeUtil.ALL_VALID_NODE_ID_KEY);
+    const waitCompileNodeIds = nodeIdsMap.get(
+      FlowNodeUtil.ALL_VALID_NODE_ID_KEY,
+    );
 
     for (const curNodeId of waitCompileNodeIds) {
       // 获取以当前节点作为开始节点的边
@@ -935,16 +1068,30 @@ export class FlowNodeUtil {
       // 没有边的起始节点为当前节点,则当前节点为终止节点,终止节点端口数量必须为1
       if (curLinks.length === 0) {
         // 校验类型是否一致
-        FlowNodeUtil.validateEndNodeType(curNodeId, nodeId2node, nodeId2NodeName);
+        FlowNodeUtil.validateEndNodeType(
+          curNodeId,
+          nodeId2node,
+          nodeId2NodeName,
+        );
         // 校验终止节点的端口数量
-        FlowNodeUtil.validateEndNodePorts(curNodeId, curOutputPorts, nodeId2NodeName);
+        FlowNodeUtil.validateEndNodePorts(
+          curNodeId,
+          curOutputPorts,
+          nodeId2NodeName,
+        );
         // 终止节点只会有1个输出端口         makeNodeTaskScripWhenSingleOutput
         curNodeTaskScript = FlowNodeUtil.makeNodeTaskScripWhenSingleOutput(
-          curNodeId, curOutputPorts, nodeId2NodeName
+          curNodeId,
+          curOutputPorts,
+          nodeId2NodeName,
         );
       } else {
         // 校验非终止节点的端口数量
-        FlowNodeUtil.validateNonEndNodePorts(curNodeId, curOutputPorts, nodeId2NodeName);
+        FlowNodeUtil.validateNonEndNodePorts(
+          curNodeId,
+          curOutputPorts,
+          nodeId2NodeName,
+        );
         const curNode = nodeId2node.get(curNodeId);
 
         // 不能使用节点的端口数量来决定生成脚本
@@ -952,18 +1099,27 @@ export class FlowNodeUtil {
         if (curNode.taskType !== VsNodeTaskTypeEnum.ROUTE) {
           // 单个输出端口节点类型
           curNodeTaskScript = FlowNodeUtil.makeNodeTaskScripWhenSingleOutput(
-            curNodeId, curOutputPorts, nodeId2NodeName
+            curNodeId,
+            curOutputPorts,
+            nodeId2NodeName,
           );
         } else {
           // 多个输出端口节点类型
           curNodeTaskScript = FlowNodeUtil.makeNodeTaskScriptWhenMultiOutput(
-            curNodeId, curOutputPorts, curLinks, nodeId2NodeName
+            curNodeId,
+            curOutputPorts,
+            curLinks,
+            nodeId2NodeName,
           );
         }
       }
 
       // 校验当前节点的任务脚本是否为空
-      FlowNodeUtil.validateNodeTaskScript(curNodeId, curNodeTaskScript, nodeId2NodeName);
+      FlowNodeUtil.validateNodeTaskScript(
+        curNodeId,
+        curNodeTaskScript,
+        nodeId2NodeName,
+      );
       nodeId2Script.set(curNodeId, curNodeTaskScript);
     }
 
@@ -982,21 +1138,27 @@ export class FlowNodeUtil {
   public static makeNodeTaskScripWhenSingleOutput(
     curNodeId: string,
     curPorts: VsPort[],
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): string {
     if (!curPorts || curPorts.length !== 1) {
       throw new DataConsistencyException(
-        `节点[${nodeId2NodeName.get(curNodeId) || ''}]端口数量应为1,当前端口数量为${curPorts ? curPorts.length : 0}`
+        `节点[${nodeId2NodeName.get(curNodeId) || ''}]端口数量应为1,当前端口数量为${curPorts ? curPorts.length : 0}`,
       );
     }
 
     const curPort = curPorts[0];
     const propScript = FlowNodeUtil.getScriptFromPort(curPort);
-    const callScript = FlowNodeUtil.SINGLE_OUTPUT_CALL_METHOD_TEMPLATE.replace('%s', propScript);
-    const additionDefineScript = FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
+    const callScript = FlowNodeUtil.SINGLE_OUTPUT_CALL_METHOD_TEMPLATE.replace(
+      '%s',
+      propScript,
+    );
+    const additionDefineScript =
+      FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
 
     return FlowNodeUtil.generateFlowNodeTaskSourceCodeWhenSingleOutput(
-      curNodeId, callScript, additionDefineScript
+      curNodeId,
+      callScript,
+      additionDefineScript,
     );
   }
 
@@ -1013,7 +1175,7 @@ export class FlowNodeUtil {
     curNodeId: string,
     curPorts: VsPort[],
     curLinks: VsLink[],
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): string {
     // 多个输出端口,需要用户确保只有1个端口为true
     const boolExpHolder: string[] = [];
@@ -1033,7 +1195,7 @@ export class FlowNodeUtil {
 
     // 边的起始端口ID-边
     const startPortId2Link = new Map<string, FlowLink>();
-    curLinks.forEach(link => startPortId2Link.set(link.sourcePort, link));
+    curLinks.forEach((link) => startPortId2Link.set(link.sourcePort, link));
 
     const portScripts: string[] = new Array(portSize);
     const callScripts: string[] = new Array(portSize);
@@ -1047,32 +1209,45 @@ export class FlowNodeUtil {
 
       if (!propScript) {
         throw new DataConsistencyException(
-          `节点[${nodeId2NodeName.get(curNodeId) || ''}]存在端口未配置`
+          `节点[${nodeId2NodeName.get(curNodeId) || ''}]存在端口未配置`,
         );
       }
 
       if (!curLink) {
         throw new DataConsistencyException(
-          `节点[${nodeId2NodeName.get(curNodeId) || ''}]存在端口未连接边`
+          `节点[${nodeId2NodeName.get(curNodeId) || ''}]存在端口未连接边`,
         );
       }
 
-      const curPortScript = FlowNodeUtil.generatePortBoolScriptSourceCode(portId, propScript);
+      const curPortScript = FlowNodeUtil.generatePortBoolScriptSourceCode(
+        portId,
+        propScript,
+      );
       portScripts[i] = curPortScript;
 
-      const curCallScript = FlowNodeUtil.generatePortCallScriptSourceCode(portId, curLink.targetId);
+      const curCallScript = FlowNodeUtil.generatePortCallScriptSourceCode(
+        portId,
+        curLink.targetId,
+      );
       callScripts[i] = curCallScript;
 
-      const curAdditionDefineScript = FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
+      const curAdditionDefineScript =
+        FlowNodeUtil.getAdditionDefineFromVsPort(curPort);
       additionDefineScripts[i] = curAdditionDefineScript;
     }
 
     const boolExp = this.formatTemplate(boolExpTemplate, portScripts);
     const callExp = this.formatTemplate(callExpTemplate, callScripts);
-    const additionDefineExp = this.formatTemplate(additionDefineExpTemplate, additionDefineScripts);
+    const additionDefineExp = this.formatTemplate(
+      additionDefineExpTemplate,
+      additionDefineScripts,
+    );
 
     return FlowNodeUtil.generateFlowNodeTaskSourceCodeWhenMultiOutput(
-      curNodeId, callExp, boolExp, additionDefineExp
+      curNodeId,
+      callExp,
+      boolExp,
+      additionDefineExp,
     );
   }
 
@@ -1136,7 +1311,7 @@ export class FlowNodeUtil {
     requestHeader: Map<string, string>,
     requestParam: Map<string, string>,
     responseHeader: Map<string, string>,
-    execFlow: any // 这里应该定义具体的执行流程接口
+    execFlow: any, // 这里应该定义具体的执行流程接口
   ): FlowNodeTask {
     // 这个方法需要根据具体的执行流程结构来实现
     // 由于涉及到动态类加载和实例化，在TypeScript中需要不同的实现方式
@@ -1157,7 +1332,7 @@ export class FlowNodeUtil {
     msgId: string,
     contextPath: string,
     method: VsHttpMethodEnum,
-    systemHeader: Map<string, string>
+    systemHeader: Map<string, string>,
   ): Promise<FlowNodeTask> {
     let loopCnt = 0;
     let currentFlowNodeTask = start;
@@ -1186,7 +1361,7 @@ export class FlowNodeUtil {
         nextFlowNodeTask = childNodes.get(activatedNode);
         if (!nextFlowNodeTask) {
           throw new Error(
-            `无法获取激活的子节点,当前节点为[${currentFlowNodeTask.getNodeName()}]`
+            `无法获取激活的子节点,当前节点为[${currentFlowNodeTask.getNodeName()}]`,
           );
         }
       } catch (error) {
@@ -1194,8 +1369,12 @@ export class FlowNodeUtil {
       }
 
       // 设置下一个节点的输入数据
-      nextFlowNodeTask.setInputRequestBody(currentFlowNodeTask.getOutputRequestBody());
-      nextFlowNodeTask.setInputResponseBody(currentFlowNodeTask.getOutputResponseBody());
+      nextFlowNodeTask.setInputRequestBody(
+        currentFlowNodeTask.getOutputRequestBody(),
+      );
+      nextFlowNodeTask.setInputResponseBody(
+        currentFlowNodeTask.getOutputResponseBody(),
+      );
       nextFlowNodeTask.setFlowCtx(currentFlowNodeTask.getFlowCtx());
       currentFlowNodeTask = nextFlowNodeTask;
     }
@@ -1211,11 +1390,11 @@ export class FlowNodeUtil {
   public static validateNonEndNodePorts(
     curNodeId: string,
     curPorts: VsPort[] | null,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): void {
     if (!curPorts || curPorts.length === 0) {
       throw new VsDataConsistencyException(
-        `节点[${nodeId2NodeName.get(curNodeId)}]应该至少有1个输出端口,当前输出端口数量为0`
+        `节点[${nodeId2NodeName.get(curNodeId)}]应该至少有1个输出端口,当前输出端口数量为0`,
       );
     }
   }
@@ -1229,11 +1408,11 @@ export class FlowNodeUtil {
   public static validateEndNodePorts(
     curNodeId: string,
     curPorts: VsPort[] | null,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): void {
     if (!curPorts || curPorts.length !== 1) {
       throw new VsDataConsistencyException(
-        `响应处理脚本节点[${nodeId2NodeName.get(curNodeId) || ''}],不能有多个输出端口`
+        `响应处理脚本节点[${nodeId2NodeName.get(curNodeId) || ''}],不能有多个输出端口`,
       );
     }
   }
@@ -1247,11 +1426,11 @@ export class FlowNodeUtil {
   public static validateNodeTaskScript(
     curNodeId: string,
     curNodeTaskScript: string,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): void {
     if (!curNodeTaskScript || curNodeTaskScript.trim() === '') {
       throw new VsDataConsistencyException(
-        `节点[${nodeId2NodeName.get(curNodeId) || ''}]任务为空`
+        `节点[${nodeId2NodeName.get(curNodeId) || ''}]任务为空`,
       );
     }
   }
@@ -1263,7 +1442,7 @@ export class FlowNodeUtil {
    */
   public static validateNodeInAtomicNodes(
     curNodeId: string,
-    atomicNodeId2node: Map<string, VsNode>
+    atomicNodeId2node: Map<string, VsNode>,
   ): void {
     const curNode = atomicNodeId2node.get(curNodeId);
     if (!curNode) {
@@ -1280,12 +1459,12 @@ export class FlowNodeUtil {
   private static validateEndNodeType(
     endNodeId: string,
     atomicNodeId2node: Map<string, VsNode>,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): void {
     const endNode = atomicNodeId2node.get(endNodeId);
     if (!endNode || endNode.taskType !== VsNodeTaskTypeEnum.END) {
       throw new VsDataConsistencyException(
-        `图需以响应处理脚本结束,当前图结束节点[${nodeId2NodeName.get(endNodeId) || ''}]不是响应处理脚本,请完善图`
+        `图需以响应处理脚本结束,当前图结束节点[${nodeId2NodeName.get(endNodeId) || ''}]不是响应处理脚本,请完善图`,
       );
     }
   }
@@ -1321,7 +1500,9 @@ export class FlowNodeUtil {
     try {
       script = vsPortProp.script;
     } catch (error) {
-      throw new VsDataConsistencyException(`无法获取脚本属性,端口ID=${vsPort.id}`);
+      throw new VsDataConsistencyException(
+        `无法获取脚本属性,端口ID=${vsPort.id}`,
+      );
     }
 
     if (!script || script.trim() === '') {
@@ -1330,7 +1511,6 @@ export class FlowNodeUtil {
       return script;
     }
   }
-
 
   /**
    * 创建运行时流程
@@ -1348,14 +1528,15 @@ export class FlowNodeUtil {
     requestParam: Map<string, string>,
     responseHeader: Map<string, string>,
     vsExecFlow: VsExecFlow,
-    queue: any // 这里需要根据实际的队列类型进行调整
+    queue: any, // 这里需要根据实际的队列类型进行调整
   ): FlowNodeTask {
     const flow = vsExecFlow.flow;
     const nodeId2Class = vsExecFlow.nodeId2Class;
     const nodeId2NodeName = vsExecFlow.nodeId2NodeName;
     const nodeId2Node = vsExecFlow.nodeId2Node;
     const nodeId2CircuitBreaker = vsExecFlow.nodeId2CircuitBreaker;
-    const nodeId2GeneralDataConvMapping = vsExecFlow.nodeId2GeneralDataConvMapping;
+    const nodeId2GeneralDataConvMapping =
+      vsExecFlow.nodeId2GeneralDataConvMapping;
     const flowCtx = new Map<string, any>();
     const ctx = vsExecFlow.ctx;
 
@@ -1377,7 +1558,9 @@ export class FlowNodeUtil {
     for (const nodeId of nodes) {
       const clazz = nodeId2Class.get(nodeId);
       if (!clazz) {
-        throw new VsDataConsistencyException(`无法获取节点对应的元数据,节点ID=${nodeId}`);
+        throw new VsDataConsistencyException(
+          `无法获取节点对应的元数据,节点ID=${nodeId}`,
+        );
       }
 
       const flowNodeTask = FlowNodeUtil.makeFlowNodeTask(
@@ -1386,7 +1569,7 @@ export class FlowNodeUtil {
         body,
         requestHeader,
         requestParam,
-        responseHeader
+        responseHeader,
       );
 
       flowNodeTask.setCircuitBreaker(nodeId2CircuitBreaker.get(nodeId));
@@ -1411,7 +1594,7 @@ export class FlowNodeUtil {
 
       if (!startNodeTask || !endNodeTask) {
         throw new VsDataConsistencyException(
-          `构造执行流失败,存在节点为空,端口开始节点ID=${startNodeId},端口结束节点ID=${endNodeId}`
+          `构造执行流失败,存在节点为空,端口开始节点ID=${startNodeId},端口结束节点ID=${endNodeId}`,
         );
       }
 
@@ -1456,12 +1639,18 @@ export class FlowNodeUtil {
     body: string,
     requestHeader: Map<string, string>,
     requestParam: Map<string, string>,
-    responseHeader: Map<string, string>
+    responseHeader: Map<string, string>,
   ): FlowNodeTask {
     try {
       // 在TypeScript/JavaScript中，我们需要使用不同的方式来创建实例
       // 这里假设clazz是一个构造函数
-      const instance = new clazz(nodeId, body, requestHeader, requestParam, responseHeader);
+      const instance = new clazz(
+        nodeId,
+        body,
+        requestHeader,
+        requestParam,
+        responseHeader,
+      );
       return instance;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -1477,7 +1666,7 @@ export class FlowNodeUtil {
    */
   public static async compileNodeTaskScript(
     nodeId2Script: Map<string, string>,
-    nodeId2NodeName: Map<string, string>
+    nodeId2NodeName: Map<string, string>,
   ): Promise<Map<string, Uint8Array>> {
     // 在JavaScript/TypeScript中，我们不需要编译字节码
     // 而是直接执行JavaScript代码或使用eval
@@ -1487,13 +1676,13 @@ export class FlowNodeUtil {
 
     for (const [nodeId, script] of nodeId2Script) {
       const promise = this.getClassBytes(nodeId, script)
-        .then(classBytes => {
+        .then((classBytes) => {
           nodeId2ClassBytes.set(nodeId, classBytes);
         })
-        .catch(error => {
+        .catch((error) => {
           const nodeName = nodeId2NodeName.get(nodeId);
           throw new ScriptCompileException(
-            `编译节点[${nodeName}]失败:\n${error.message}`
+            `编译节点[${nodeName}]失败:\n${error.message}`,
           );
         });
       promises.push(promise);
@@ -1510,7 +1699,10 @@ export class FlowNodeUtil {
    * @param script 脚本内容
    * @returns 类字节码
    */
-  public static async getClassBytes(nodeId: string, script: string): Promise<Uint8Array> {
+  public static async getClassBytes(
+    nodeId: string,
+    script: string,
+  ): Promise<Uint8Array> {
     try {
       // 在JavaScript/TypeScript中，我们将脚本内容转换为字节数组
       // 这里使用TextEncoder来将字符串转换为Uint8Array
@@ -1521,7 +1713,7 @@ export class FlowNodeUtil {
       const scriptInfo = {
         nodeId,
         script,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       // 将对象序列化为JSON字符串，然后转换为字节数组
@@ -1554,7 +1746,6 @@ export class FlowNodeUtil {
     }
   }
 }
-
 
 // 相关的类和接口定义
 export interface VsPortProp {

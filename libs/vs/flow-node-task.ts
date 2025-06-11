@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { VsNodeUserLogSaveReq } from '../../node/dto/node-user-log-save-req';
-import { DateTimeUtil } from './date-time-util';
+import { VsNodeUserLogSaveReq } from '../../apps/vs-adapter/src/node/dto/node-user-log-save-req';
+import { DateTimeUtil } from '../utils/date-time-util';
 import { Queue } from 'bullmq';
 import { VsNodeTaskTypeEnum } from '@app/enum/node.enum';
 /**

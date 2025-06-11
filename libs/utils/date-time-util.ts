@@ -1,5 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { format, parse, parseISO, startOfDay, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
+import {
+  format,
+  parse,
+  parseISO,
+  startOfDay,
+  setHours,
+  setMinutes,
+  setSeconds,
+  setMilliseconds,
+} from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 /**
@@ -13,7 +22,7 @@ export class DateTimeUtil {
   /**
    * 日期时间格式常量
    */
-  public static readonly YYYY_MM_ddTHH_mm_ss = 'yyyy-MM-dd\'T\'HH:mm:ss';
+  public static readonly YYYY_MM_ddTHH_mm_ss = "yyyy-MM-dd'T'HH:mm:ss";
   public static readonly YYYYMMddHHmmss = 'yyyyMMddHHmmss';
   public static readonly YYYY_MM_dd_HH_mm_ss = 'yyyy-MM-dd HH:mm:ss';
   public static readonly YYYY_MM_dd = 'yyyy-MM-dd';
@@ -38,7 +47,11 @@ export class DateTimeUtil {
    * @param min 分钟值 (0-59)
    * @returns 重置后的日期时间
    */
-  public static resetHourMinSecWithHourMin(dateTime: Date, hour: number, min: number): Date {
+  public static resetHourMinSecWithHourMin(
+    dateTime: Date,
+    hour: number,
+    min: number,
+  ): Date {
     return DateTimeUtil.resetHourMinSecWithHourMinSec(dateTime, hour, min, 0);
   }
 
@@ -50,7 +63,12 @@ export class DateTimeUtil {
    * @param sec 秒值 (0-59)
    * @returns 重置后的日期时间
    */
-  public static resetHourMinSecWithHourMinSec(dateTime: Date, hour: number, min: number, sec: number): Date {
+  public static resetHourMinSecWithHourMinSec(
+    dateTime: Date,
+    hour: number,
+    min: number,
+    sec: number,
+  ): Date {
     if (!dateTime) {
       return null;
     }
@@ -79,7 +97,10 @@ export class DateTimeUtil {
       return parseISO(dateTimeStr);
     } catch (ex) {
       // 忽略异常，返回默认值
-      DateTimeUtil.logger.debug(`Failed to parse date string: ${dateTimeStr}`, ex);
+      DateTimeUtil.logger.debug(
+        `Failed to parse date string: ${dateTimeStr}`,
+        ex,
+      );
     }
     return defaultVal;
   }
@@ -91,7 +112,11 @@ export class DateTimeUtil {
    * @param defaultVal 默认值
    * @returns 解析后的日期时间或默认值
    */
-  public static parseWithFormat(dateTimeStr: string, formatPattern: string, defaultVal: Date): Date {
+  public static parseWithFormat(
+    dateTimeStr: string,
+    formatPattern: string,
+    defaultVal: Date,
+  ): Date {
     try {
       if (!dateTimeStr || dateTimeStr.trim().length === 0) {
         return defaultVal;
@@ -101,7 +126,10 @@ export class DateTimeUtil {
       const referenceDate = new Date();
       return parse(dateTimeStr, formatPattern, referenceDate);
     } catch (ex) {
-      DateTimeUtil.logger.debug(`Failed to parse date string with format: ${dateTimeStr}, format: ${formatPattern}`, ex);
+      DateTimeUtil.logger.debug(
+        `Failed to parse date string with format: ${dateTimeStr}, format: ${formatPattern}`,
+        ex,
+      );
     }
     return defaultVal;
   }
@@ -124,7 +152,7 @@ export class DateTimeUtil {
       DateTimeUtil.YYYY_MM_ddTHH_mm_ss,
       DateTimeUtil.YYYYMMddHHmmss,
       DateTimeUtil.YYYY_MM_dd,
-      DateTimeUtil.HH_mm_ss
+      DateTimeUtil.HH_mm_ss,
     ];
 
     for (const formatPattern of formats) {
@@ -163,7 +191,10 @@ export class DateTimeUtil {
     try {
       return format(dateTime, formatPattern, { locale: zhCN });
     } catch (ex) {
-      DateTimeUtil.logger.error(`Failed to format date: ${dateTime}, format: ${formatPattern}`, ex);
+      DateTimeUtil.logger.error(
+        `Failed to format date: ${dateTime}, format: ${formatPattern}`,
+        ex,
+      );
       return '';
     }
   }
@@ -249,7 +280,10 @@ export class DateTimeUtil {
       return false;
     }
 
-    return DateTimeUtil.formatToYYYY_MM_dd(date1) === DateTimeUtil.formatToYYYY_MM_dd(date2);
+    return (
+      DateTimeUtil.formatToYYYY_MM_dd(date1) ===
+      DateTimeUtil.formatToYYYY_MM_dd(date2)
+    );
   }
 
   /**

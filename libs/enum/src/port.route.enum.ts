@@ -43,7 +43,10 @@ export class VsPortRouteMetaDataTypeValidator {
 
       case VsPortRouteMetaDataTypeEnum.DOUBLE:
         try {
-          if (isNaN(parseFloat(value))) throw new Error();
+          if (isNaN(parseFloat(value)))
+            throw new Error(
+              `值非法,值=${value},类型=${dataType},节点ID=${nodeId}`,
+            );
         } catch (error) {
           throw new Error(
             `值非法,值=${value},类型=${dataType},节点ID=${nodeId}`,
@@ -136,14 +139,14 @@ export enum VsPortRouteMetaSourceTypeEnum {
   REQ_PARAM = 'REQ_PARAM',
 }
 /**
-     * get request header for code generate
-     */
-export const EXP_REQ_HEADER = "this.getRequestHeader()";
+ * get request header for code generate
+ */
+export const EXP_REQ_HEADER = 'this.getRequestHeader()';
 
 /**
  * get request param for code generate
  */
-export const EXP_REQ_PARAM = "this.getRequestParam()";
+export const EXP_REQ_PARAM = 'this.getRequestParam()';
 // 为了支持枚举值的描述和表达式，我们可以创建辅助映射
 export const VsPortRouteMetaSourceTypeDescription: Record<
   VsPortRouteMetaSourceTypeEnum,
