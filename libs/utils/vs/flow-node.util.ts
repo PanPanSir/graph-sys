@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import * as vm from 'vm';
-import { FlowNodeTask } from '../vs/flow-node-task';
+import { FlowNodeTask } from './flow-node-task';
 import { VsNodeViewTypeEnum, VsNodeTaskTypeEnum } from '@app/enum/node.enum';
-import { Flow } from '../vs/flow';
-import { FlowNode } from '../vs/flow-node';
-import { FlowLink } from '../vs/flow-link';
+import { Flow } from './flow';
+import { FlowNode } from './flow-node';
+import { FlowLink } from './flow-link';
 import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
-import { VsExecFlow } from '../vs/Vs-exec-flow';
+import { VsExecFlow } from './Vs-exec-flow';
 import { VsLink } from 'apps/vs-adapter/src/link/entities/link.entity';
 import { VsNode } from 'apps/vs-adapter/src/node/entities/node.entity';
 import { VsPort } from 'apps/vs-adapter/src/port/entities/port.entity';
@@ -257,76 +257,80 @@ export class FlowNodeUtil {
    */
   private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
     // HTTP POST请求执行
-    try {
-      // changeUrlWhenPathVariable方法处理URL中的路径变量，%s是占位符
-      let url = this.changeUrlWhenPathVariable("%s");
-      const pathParams = this.requestParams || new Map();
+      try {
+      // 构建URL
+      const url = this.changeUrlWhenPathVariable(urlTemplate);
+      const urlWithParams = this.httpUtil.makeUrlWithParams(url, this.getRequestParam());
 
-      // 替换路径中的变量，如 /api/users/{id} -> /api/users/123
-      for (const [key, value] of pathParams) {
-        const placeholder = '{' + key + '}';
-        if (url.includes(placeholder)) {
-          url = url.replace(new RegExp('\\{' + key + '\\}', 'g'), value || '');
-        }
+      // 构建请求头
+      const headerMap: MultiValueMap<string, HttpHeader> = {};
+      for (const [key, value] of this.getRequestHeader()) {
+        headerMap[key] = [{ name: key, value }];
       }
 
-      // 组合所有参数
-      const allParams = new Map();
+      // 定义请求执行函数
+      const executeRequest = async (): Promise<void> => {
+        try {
+          // 执行异步POST请求
+          const response: AxiosResponse = await this.asyncHttpConnPoolUtil.doPost(
+            urlWithParams,
+            this.getInputRequestBody(),
+            headerMap
+          );
 
-      // 添加请求参数
-      if (this.requestParams) {
-        for (const [key, value] of this.requestParams) {
-          allParams.set(key, value);
+          const responseCode = response.status;
+          const responseData = response.data;
+
+          // 检查响应状态
+          if (responseCode !== 200 || responseData == null) {
+            throw new Error(\`状态码=\${responseCode},响应体=\${responseData}\`);
+          }
+
+          // 设置响应体
+          this.setOutputResponseBody(typeof responseData === 'string' ? responseData : JSON.stringify(responseData));
+        } catch (error) {
+          this.logger.error(
+            \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}\`,
+            error
+          );
+          throw new ScriptFailedExecException(
+            \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=\${error.message}\`
+          );
         }
-      }
-
-      // 添加输入参数
-      if (this.inputParams) {
-        for (const [key, value] of this.inputParams) {
-          allParams.set(key, value);
-        }
-      }
-
-      // 设置请求头
-      const headers = {
-        'Content-Type': 'application/json',
-        ...Object.fromEntries(this.requestHeaders || new Map())
       };
 
-      // 准备请求体数据
-      const requestBody = Object.fromEntries(allParams);
-
-      // 执行HTTP POST请求
-      const response = await this.httpService.post(url, requestBody, {
-        headers,
-        timeout: %d // 超时时间占位符
-      }).toPromise();
-
-      // 处理响应
-      if (response && response.data) {
-        this.outputResponseBody = JSON.stringify(response.data);
-        this.logger.info('HTTP POST请求成功执行');
+      // 执行请求（带熔断器支持）
+      const circuitBreaker = this.getCircuitBreaker();
+      if (circuitBreaker) {
+        try {
+          // 使用熔断器执行请求
+          await circuitBreaker.fire();
+          await executeRequest();
+        } catch (error) {
+          // 检查是否是熔断器异常
+          if (error.name === 'OpenCircuitError' || error.message.includes('circuit')) {
+            this.logger.error(
+              \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}, because it is in FUSED state\`,
+              error
+            );
+            throw new ScriptFailedExecException(
+              \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=接口已熔断\`
+            );
+          }
+          throw error;
+        }
       } else {
-        this.outputResponseBody = '';
-        this.logger.warn('HTTP POST请求返回空响应');
+        // 直接执行请求
+        await executeRequest();
       }
-
     } catch (error) {
-      // 错误处理和熔断器逻辑
-      this.logger.error('HTTP POST请求执行失败:', error);
-
-      // 简单的熔断器逻辑
-      if (this.failureCount === undefined) {
-        this.failureCount = 0;
+      // 重新抛出异常
+      if (error instanceof ScriptFailedExecException) {
+        throw error;
       }
-      this.failureCount++;
-
-      if (this.failureCount >= 3) {
-        this.logger.error('请求失败次数过多，触发熔断器');
-        this.outputResponseBody = JSON.stringify({ error: '服务暂时不可用' });
-      } else {
-        this.outputResponseBody = JSON.stringify({ error: error.message || '请求失败' });
-      }
+      throw new ScriptFailedExecException(
+        \`请求节点[\${this.getNodeName()}]失败,msg=\${error.message}\`
+      );
     }
   `;
 

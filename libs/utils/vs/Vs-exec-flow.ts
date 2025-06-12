@@ -1,6 +1,6 @@
 import { VsHttpMethodEnum } from '@app/enum/port.enum';
 import { FlowNodeTask } from './flow-node-task';
-import { VsNode } from '../../apps/vs-adapter/src/node/entities/node.entity';
+import { VsNode } from '../../../apps/vs-adapter/src/node/entities/node.entity';
 import { Flow } from './flow';
 
 /**
