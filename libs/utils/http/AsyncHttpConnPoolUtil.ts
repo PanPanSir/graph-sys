@@ -1,24 +1,82 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { AxiosRequestConfig, AxiosResponse } from 'axios';
-import { firstValueFrom } from 'rxjs';
-import * as FormData from 'form-data';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as https from 'https';
-import * as http from 'http';
+import * as FormData from 'form-data';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface MultiValueMap<_K, V> {
-  [key: string]: V[];
-}
-
-interface HttpHeader {
+export interface Header {
   name: string;
   value: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export interface MultiValueMap<K, V> {
+  [key: string]: V[];
+}
+// 抽象基类，对应Java的HttpEntityEnclosingRequestBase
+abstract class HttpEntityEnclosingRequestBase {
+  private uri: string;
+  private entity: any;
+  private headers: Map<string, Header[]> = new Map();
+  private config?: any;
+
+  constructor() {
+    // 对应Java的super()调用
+  }
+
+  // 抽象方法，子类必须实现
+  abstract getMethod(): string;
+
+  // 设置URI
+  setURI(uri: string): void {
+    this.uri = uri;
+  }
+
+  getURI(): string {
+    return this.uri;
+  }
+
+  // 设置请求体，对应Java的setEntity
+  setEntity(entity: any): void {
+    this.entity = entity;
+  }
+
+  getEntity(): any {
+    return this.entity;
+  }
+
+  // 添加请求头
+  addHeader(name: string, value: Header): void {
+    if (!this.headers[name]) {
+      this.headers[name] = [];
+    }
+    this.headers[name].push(value);
+  }
+
+  // 获取所有请求头
+  getAllHeaders(): Record<string, string> {
+    const flatHeaders: Record<string, string> = {};
+    Object.entries(this.headers).forEach(([key, values]) => {
+      flatHeaders[key] = values.join(', ');
+    });
+    return flatHeaders;
+  }
+
+  // 设置请求配置
+  setConfig(config: any): void {
+    this.config = config;
+  }
+
+  getConfig(): any {
+    return this.config;
+  }
+}
+
+/**
+ * use axios library to do http request
+ */
 @Injectable()
 export class AsyncHttpConnPoolUtil {
-  private readonly logger = new Logger(AsyncHttpConnPoolUtil.name);
+  private static readonly logger = new Logger(AsyncHttpConnPoolUtil.name);
 
   // 最大连接数
   private static readonly MAX_TOTAL = 5000;
@@ -27,339 +85,366 @@ export class AsyncHttpConnPoolUtil {
   // 客户端和服务器建立连接超时时间(ms)
   private static readonly CONNECT_TIMEOUT = 10_000;
   // 从连接池获取连接超时时间(ms)
+  // request从创建到被eventloop消费到的最大时间，如果追求高吞吐而导致延迟高，这个排队时间要给大一些
   private static readonly CONNECTION_REQUEST_TIMEOUT = 60_000;
   // 客户端和服务器建立连接后，客户端从服务器读取数据超时时间(ms)
   private static readonly SOCKET_TIMEOUT = 60_000;
 
-  private httpAgent: http.Agent;
-  private httpsAgent: https.Agent;
+  private static asyncHttpClient: AxiosInstance;
 
-  constructor(private readonly httpService: HttpService) {
-    this.initializeAgents();
-    this.logger.log('HTTP connection pool initialized successfully.');
-  }
-
-  private initializeAgents(): void {
-    // 配置HTTP Agent
-    this.httpAgent = new http.Agent({
-      keepAlive: true,
-      maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
-      maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
-      timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-    });
-
-    // 配置HTTPS Agent
-    this.httpsAgent = new https.Agent({
-      keepAlive: true,
-      maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
-      maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
-      timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-      rejectUnauthorized: false, // 等同于Java中的TrustSelfSignedStrategy
-    });
-  }
-
-  private getBaseConfig(): AxiosRequestConfig {
-    return {
-      timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-      httpAgent: this.httpAgent,
-      httpsAgent: this.httpsAgent,
-      maxRedirects: 5,
-    };
-  }
-
-  private convertHeaders(
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Record<string, string> {
-    if (!headers) return {};
-
-    const result: Record<string, string> = {};
-    for (const [key, headerList] of Object.entries(headers)) {
-      if (headerList && headerList.length > 0) {
-        // 如果有多个相同名称的header，用逗号分隔
-        result[key] = headerList.map((h) => h.value).join(', ');
-      }
-    }
-    return result;
-  }
-
-  /**
-   * GET请求
-   */
-  async doGet(
-    url: string,
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Promise<AxiosResponse> {
+  static {
     try {
-      const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: 'GET',
-        url,
-        headers: this.convertHeaders(headers),
-      };
-
-      return await firstValueFrom(this.httpService.request(config));
-    } catch (error) {
-      this.logger.error(
-        `GET request failed, url = ${url}, headers = ${JSON.stringify(headers)}`,
-        error,
+      AsyncHttpConnPoolUtil.asyncHttpClient =
+        AsyncHttpConnPoolUtil.getAsyncHttpClient();
+    } catch (ex) {
+      AsyncHttpConnPoolUtil.logger.error(
+        'http connection pool init failed',
+        ex,
       );
-      throw error;
+      process.exit(-1);
+    } finally {
+      AsyncHttpConnPoolUtil.logger.log('http connection pool init success.');
     }
+  }
+
+  private constructor() {
+    throw new Error('Utility class');
+  }
+
+  public static getAsyncHttpClient(): AxiosInstance {
+    // 配置超时和连接池
+    const httpsAgent = new https.Agent({
+      maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
+      maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
+      keepAlive: true,
+      rejectUnauthorized: false, // 对应Java的TrustSelfSignedStrategy
+    });
+
+    return axios.create({
+      timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
+      httpsAgent: httpsAgent,
+      // 对应Java的RequestConfig
+      // connectTimeout在Node.js中通过httpsAgent的timeout处理
+    });
+  }
+
+  public static async doGet(
+    url: string,
+    timeout: number,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const httpGetWithEntity = new HttpGetWithEntity(url);
+    return AsyncHttpConnPoolUtil.execute(
+      httpGetWithEntity,
+      null,
+      timeout,
+      headers,
+    );
   }
 
   /**
    * JSON/XML/PLAIN 格式的POST请求
+   *
+   * @param url
+   * @param requestBody
+   * @param headers
    */
-  async doPost(
+  public static async doPost(
     url: string,
-    body?: string,
-    headers?: MultiValueMap<string, HttpHeader>,
+    requestBody: string,
+    timeout: number,
+    headers?: Map<string, Header[]>,
   ): Promise<AxiosResponse> {
-    try {
-      const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: 'POST',
-        url,
-        data: body,
-        headers: this.convertHeaders(headers),
-      };
+    const stringEntity = requestBody; // 对应Java的StringEntity
+    return AsyncHttpConnPoolUtil.doInternalPost(url, stringEntity, headers);
+  }
 
-      return await firstValueFrom(this.httpService.request(config));
-    } catch (error) {
-      this.logger.error(
-        `POST request failed, url = ${url}, headers = ${JSON.stringify(headers)}`,
-        error,
-      );
-      throw error;
+  /**
+   * URL编码格式的POST请求
+   *
+   * @param url
+   * @param params
+   * @param headers
+   */
+  public static async doPostUrlEncodedData(
+    url: string,
+    params: Record<string, string>,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const urlEncodedFormEntity = new URLSearchParams(params).toString();
+    return AsyncHttpConnPoolUtil.doInternalPost(
+      url,
+      urlEncodedFormEntity,
+      headers,
+    );
+  }
+
+  /**
+   * 表单格式的POST请求（文本）
+   *
+   * @param url
+   * @param params
+   * @param headers
+   */
+  public static async doPostFormDataInText(
+    url: string,
+    params: Record<string, string>,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const multipartEntityBuilder = new FormData();
+    Object.entries(params).forEach(([key, value]) => {
+      AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
+    });
+    const httpEntity = multipartEntityBuilder;
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
+  }
+
+  /**
+   * 表单格式的POST请求（二进制）
+   *
+   * @param url
+   * @param params
+   * @param headers
+   */
+  public static async doPostFormDataInByteArray(
+    url: string,
+    params: Record<string, Buffer>,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const multipartEntityBuilder = new FormData();
+    Object.entries(params).forEach(([key, value]) => {
+      AsyncHttpConnPoolUtil.addBinaryBody(multipartEntityBuilder, key, value);
+    });
+    const httpEntity = multipartEntityBuilder;
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
+  }
+
+  /**
+   * 表单格式的POST请求（混合）
+   *
+   * @param url
+   * @param textParams
+   * @param binaryParams
+   * @param headers
+   */
+  public static async doPostFormData(
+    url: string,
+    textParams?: Record<string, string>,
+    binaryParams?: Record<string, Buffer>,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const multipartEntityBuilder = new FormData();
+
+    if (textParams) {
+      Object.entries(textParams).forEach(([key, value]) => {
+        AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
+      });
     }
-  }
 
-  /**
-   * x-www-form-urlencoded 类型的POST请求
-   */
-  async doPostUrlEncodedData(
-    url: string,
-    body?: MultiValueMap<string, string>,
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Promise<AxiosResponse> {
-    try {
-      const params = new URLSearchParams();
-      if (body) {
-        for (const [key, values] of Object.entries(body)) {
-          if (!values || values.length === 0) {
-            params.append(key, '');
-          } else {
-            for (const value of values) {
-              params.append(key, value || '');
-            }
-          }
-        }
-      }
-
-      const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: 'POST',
-        url,
-        data: params.toString(),
-        headers: {
-          ...this.convertHeaders(headers),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      };
-
-      return await firstValueFrom(this.httpService.request(config));
-    } catch (error) {
-      this.logger.error(`POST URL-encoded request failed, url = ${url}`, error);
-      throw error;
+    if (binaryParams) {
+      Object.entries(binaryParams).forEach(([key, value]) => {
+        AsyncHttpConnPoolUtil.addBinaryBody(multipartEntityBuilder, key, value);
+      });
     }
+
+    const httpEntity = multipartEntityBuilder;
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
   }
 
   /**
-   * 文本形式的FormData POST请求
+   * 表单格式的PUT请求（文本）
+   *
+   * @param url
+   * @param params
+   * @param headers
    */
-  async doPostFormDataInText(
+  public static async doPutFormDataInText(
     url: string,
-    body?: MultiValueMap<string, string>,
-    headers?: MultiValueMap<string, HttpHeader>,
+    params: Record<string, string>,
+    headers?: Map<string, Header[]>,
   ): Promise<AxiosResponse> {
-    return this.doPostFormData(url, body, undefined, headers);
+    const multipartEntityBuilder = new FormData();
+    Object.entries(params).forEach(([key, value]) => {
+      AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
+    });
+    const httpEntity = multipartEntityBuilder;
+    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, headers);
   }
 
   /**
-   * 二进制形式的FormData POST请求
+   * 表单格式的PUT请求（混合）
+   *
+   * @param url
+   * @param textParams
+   * @param binaryParams
+   * @param headers
    */
-  async doPostFormDataInByteArray(
+  public static async doPutFormData(
     url: string,
-    body?: MultiValueMap<string, Buffer>,
-    headers?: MultiValueMap<string, HttpHeader>,
+    textParams?: Record<string, string>,
+    binaryParams?: Record<string, Buffer>,
+    headers?: Map<string, Header[]>,
   ): Promise<AxiosResponse> {
-    return this.doPostFormData(url, undefined, body, headers);
-  }
+    const multipartEntityBuilder = new FormData();
 
-  /**
-   * FormData POST请求（支持文本和二进制）
-   */
-  async doPostFormData(
-    url: string,
-    textBody?: MultiValueMap<string, string>,
-    binaryBody?: MultiValueMap<string, Buffer>,
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Promise<AxiosResponse> {
-    try {
-      const formData = new FormData();
-
-      // 添加文本字段
-      if (textBody) {
-        this.addTextBodyToFormData(textBody, formData);
-      }
-
-      // 添加二进制字段
-      if (binaryBody) {
-        this.addBinaryBodyToFormData(binaryBody, formData);
-      }
-
-      const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: 'POST',
-        url,
-        data: formData,
-        headers: {
-          ...this.convertHeaders(headers),
-          ...formData.getHeaders(),
-        },
-      };
-
-      return await firstValueFrom(this.httpService.request(config));
-    } catch (error) {
-      this.logger.error(`POST FormData request failed, url = ${url}`, error);
-      throw error;
+    if (textParams) {
+      Object.entries(textParams).forEach(([key, value]) => {
+        AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
+      });
     }
-  }
 
-  /**
-   * 文本形式的FormData PUT请求
-   */
-  async doPutFormDataInText(
-    url: string,
-    body?: MultiValueMap<string, string>,
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Promise<AxiosResponse> {
-    return this.doPutFormData(url, body, undefined, headers);
-  }
-
-  /**
-   * FormData PUT请求（支持文本和二进制）
-   */
-  async doPutFormData(
-    url: string,
-    textBody?: MultiValueMap<string, string>,
-    binaryBody?: MultiValueMap<string, Buffer>,
-    headers?: MultiValueMap<string, HttpHeader>,
-  ): Promise<AxiosResponse> {
-    try {
-      const formData = new FormData();
-
-      // 添加文本字段
-      if (textBody) {
-        this.addTextBodyToFormData(textBody, formData);
-      }
-
-      // 添加二进制字段
-      if (binaryBody) {
-        this.addBinaryBodyToFormData(binaryBody, formData);
-      }
-
-      const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: 'PUT',
-        url,
-        data: formData,
-        headers: {
-          ...this.convertHeaders(headers),
-          ...formData.getHeaders(),
-        },
-      };
-
-      return await firstValueFrom(this.httpService.request(config));
-    } catch (error) {
-      this.logger.error(`PUT FormData request failed, url = ${url}`, error);
-      throw error;
+    if (binaryParams) {
+      Object.entries(binaryParams).forEach(([key, value]) => {
+        AsyncHttpConnPoolUtil.addBinaryBody(multipartEntityBuilder, key, value);
+      });
     }
+
+    const httpEntity = multipartEntityBuilder;
+    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, headers);
   }
 
-  /**
-   * 通用执行方法
-   */
-  async execute(
-    method: string,
+  private static async doInternalPost(
     url: string,
-    data?: any,
-    headers?: MultiValueMap<string, HttpHeader>,
+    httpEntity: any,
+    timeout: number,
+    headers?: Map<string, Header[]>,
   ): Promise<AxiosResponse> {
+    const httpPost = new HttpPost(url);
+    return AsyncHttpConnPoolUtil.execute(
+      httpPost,
+      httpEntity,
+      timeout,
+      headers,
+    );
+  }
+
+  private static async doInternalPut(
+    url: string,
+    httpEntity: any,
+    timeout: number,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    const httpPut = new HttpPut(url);
+    return AsyncHttpConnPoolUtil.execute(httpPut, httpEntity, timeout, headers);
+  }
+
+  private static addTextBody(
+    multipartEntityBuilder: FormData,
+    name: string,
+    text: string,
+  ): void {
+    multipartEntityBuilder.append(name, text);
+  }
+
+  private static addBinaryBody(
+    multipartEntityBuilder: FormData,
+    name: string,
+    body: Buffer,
+  ): void {
+    multipartEntityBuilder.append(name, body);
+  }
+
+  private static async execute(
+    httpEntityEnclosingRequestBase: HttpEntityEnclosingRequestBase,
+    httpEntity: any,
+    timeout: number,
+    headers?: Map<string, Header[]>,
+  ): Promise<AxiosResponse> {
+    // 设置请求体
+    if (httpEntity) {
+      httpEntityEnclosingRequestBase.setEntity(httpEntity);
+    }
+
+    // 设置headers
+    if (headers) {
+      Object.entries(headers).forEach(([key, values]) => {
+        values.forEach((value) => {
+          httpEntityEnclosingRequestBase.addHeader(key, value);
+        });
+      });
+    }
+
     try {
       const config: AxiosRequestConfig = {
-        ...this.getBaseConfig(),
-        method: method as any,
-        url,
-        data,
-        headers: this.convertHeaders(headers),
+        method: httpEntityEnclosingRequestBase.getMethod(),
+        url: httpEntityEnclosingRequestBase.getURI(),
+        data: httpEntityEnclosingRequestBase.getEntity(),
+        headers: httpEntityEnclosingRequestBase.getAllHeaders(),
+        timeout,
       };
 
-      const response = await firstValueFrom(this.httpService.request(config));
+      const response =
+        await AsyncHttpConnPoolUtil.asyncHttpClient.request(config);
       return response;
     } catch (error) {
-      this.logger.error(
-        `${method} request failed, url = ${url}, headers = ${JSON.stringify(headers)}`,
+      AsyncHttpConnPoolUtil.logger.error(
+        `HTTP request failed: ${error.message}`,
         error,
       );
       throw error;
     }
   }
 
-  private addTextBodyToFormData(
-    textBody: MultiValueMap<string, string>,
-    formData: FormData,
-  ): void {
-    for (const [key, values] of Object.entries(textBody)) {
-      if (!values || values.length === 0) {
-        formData.append(key, '');
-      } else {
-        for (const value of values) {
-          formData.append(key, value || '');
-        }
-      }
+  // 对应Java的main方法，用于测试
+  public static async main(): Promise<void> {
+    const startTime = Date.now();
+    AsyncHttpConnPoolUtil.logger.log(
+      `开始时间: ${new Date(startTime).toLocaleString()}`,
+    );
+
+    try {
+      const response = await AsyncHttpConnPoolUtil.doGet(
+        'https://httpbin.org/get',
+      );
+      AsyncHttpConnPoolUtil.logger.log(`响应状态: ${response.status}`);
+      AsyncHttpConnPoolUtil.logger.log(
+        `响应数据: ${JSON.stringify(response.data)}`,
+      );
+    } catch (error) {
+      AsyncHttpConnPoolUtil.logger.error('请求失败', error);
     }
+
+    const endTime = Date.now();
+    AsyncHttpConnPoolUtil.logger.log(
+      `结束时间: ${new Date(endTime).toLocaleString()}`,
+    );
+    AsyncHttpConnPoolUtil.logger.log(`总耗时: ${endTime - startTime}ms`);
+  }
+}
+
+// 对应Java的HttpGetWithEntity类
+class HttpGetWithEntity extends HttpEntityEnclosingRequestBase {
+  constructor(uri: string) {
+    super();
+    this.setURI(uri);
   }
 
-  private addBinaryBodyToFormData(
-    binaryBody: MultiValueMap<string, Buffer>,
-    formData: FormData,
-  ): void {
-    for (const [key, values] of Object.entries(binaryBody)) {
-      if (!values || values.length === 0) {
-        formData.append(key, Buffer.from(''), { filename: key });
-      } else {
-        for (const buffer of values) {
-          formData.append(key, buffer || Buffer.from(''), { filename: key });
-        }
-      }
-    }
+  getMethod(): string {
+    return 'GET';
+  }
+}
+
+// 对应Java的HttpPut类
+class HttpPut extends HttpEntityEnclosingRequestBase {
+  constructor(uri: string) {
+    super();
+    this.setURI(uri);
   }
 
-  /**
-   * 获取连接池状态信息
-   */
-  getConnectionPoolStats(): {
-    maxTotal: number;
-    maxPerRoute: number;
-    connectTimeout: number;
-    socketTimeout: number;
-  } {
-    return {
-      maxTotal: AsyncHttpConnPoolUtil.MAX_TOTAL,
-      maxPerRoute: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
-      connectTimeout: AsyncHttpConnPoolUtil.CONNECT_TIMEOUT,
-      socketTimeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-    };
+  getMethod(): string {
+    return 'PUT';
+  }
+}
+
+class HttpPost extends HttpEntityEnclosingRequestBase {
+  static readonly METHOD_NAME = 'POST';
+
+  constructor(uri: string) {
+    super();
+    this.setURI(uri);
+  }
+
+  getMethod(): string {
+    return HttpPost.METHOD_NAME;
   }
 }

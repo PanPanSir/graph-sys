@@ -41,7 +41,9 @@
       ],
       "@app/enum/*": [
         "libs/enum/src/*"
-      ]
+      ],
+      "@app/utils": ["libs/utils"],
+      "@app/utils/*": ["libs/utils/*"]
     }
   }
 }

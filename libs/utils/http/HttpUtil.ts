@@ -190,10 +190,7 @@ export class HttpUtil {
    * @param paramMap 参数映射
    * @returns 带参数的完整URL
    */
-  static makeUrlWithParams(
-    url: string,
-    paramMap: Record<string, string>,
-  ): string {
+  static makeUrlWithParams(url: string, paramMap: Map<string, string>): string {
     const paramStr = this.buildQueryParamStr(paramMap);
     return url + paramStr;
   }
@@ -204,9 +201,7 @@ export class HttpUtil {
    * @param queryParams 查询参数映射
    * @returns 查询参数字符串
    */
-  private static buildQueryParamStr(
-    queryParams: Record<string, string>,
-  ): string {
+  private static buildQueryParamStr(queryParams: Map<string, string>): string {
     const params: string[] = [];
 
     Object.entries(queryParams).forEach(([paramKey, paramVal]) => {
