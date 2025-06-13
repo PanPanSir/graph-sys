@@ -5,9 +5,9 @@ import { Queue } from 'bull';
 import { VsNodeTaskTypeEnum } from '@app/enum/node.enum';
 import { VsDataConvRT } from './VsDataConvRT';
 import { VsNodeUserLogSaveReq } from 'apps/vs-adapter/src/node/dto/node-user-log-save-req';
-import { VsExecContext } from './VsExecContext';
 import { DateTimeUtil } from './date-time-util';
 import { XApiConstants } from 'libs/constants/x-api.constants';
+import { VsExecContext } from './Vs-exec-flow';
 
 /**
  * !!! ATTENTION !!!

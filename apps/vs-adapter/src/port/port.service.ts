@@ -11,7 +11,7 @@ import {
   VsPortRouteMetaOpTypeOperator,
   VsPortRouteMetaSourceTypeExpression,
 } from '@app/enum/port.route.enum';
-import { FlowNodeUtil } from '@app/utils/flow-node.util';
+import { FlowNodeUtil } from '@app/utils/vs/flow-node.util';
 
 @Injectable()
 export class PortService {
@@ -118,7 +118,6 @@ export class PortService {
     const reqProp = req.properties;
     // 当为http/context组件时 更新属性
     this.setPropWhenContextHttpComponent(reqProp);
-    const reqVsPort = req.toVsPort();
 
     const portId = req.id;
     // 其实没有必要从db里面取，直接从req里获取数据就行了，这里这样做是有历史原因的，应该优化一下
@@ -269,6 +268,7 @@ export class PortService {
             reqProp,
             nodeId,
           );
+          console.log(script);
         } else {
           console.error(
             `unsupported task type with input port, portId = ${portId}, nodeId = ${vsNode.id}, taskType = ${vsNode.taskType}`,
@@ -287,6 +287,7 @@ export class PortService {
       );
     }
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setPropWhenContextHttpComponent(vsportProp: VsPortProp) {
     // TODO
     // 前端最新版本里，http/context传过来的是一个id，后端在当前方法里将id换为接口的url等属性

@@ -3,7 +3,6 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { AxiosResponse } from 'axios';
 import { CircuitBreaker } from 'opossum';
 import { HttpUtil } from '@app/utils/http/HttpUtil';
@@ -29,13 +28,13 @@ export class FlowService {
   private outputResponseBody: string;
   private circuitBreaker: CircuitBreaker<any[], any>;
 
-  constructor(
+  // 添加初始化方法
+  initialize(
     nodeId: string,
     body: string,
-    requestHeader?: Map<string, string>,
+    requestHeader?: Map<string, Header[]>,
     requestParam?: Map<string, string>,
     responseHeader?: Map<string, string>,
-    private readonly httpService?: HttpService,
   ) {
     this.nodeId = nodeId;
     this.body = body;
@@ -70,7 +69,7 @@ export class FlowService {
           // 执行异步POST请求
           const response: AxiosResponse = await AsyncHttpConnPoolUtil.doGet(
             urlWithParams,
-            120,
+            1200,
             headerMap,
           );
 

@@ -16,7 +16,7 @@ export interface MultiValueMap<K, V> {
 abstract class HttpEntityEnclosingRequestBase {
   private uri: string;
   private entity: any;
-  private headers: Map<string, Header[]> = new Map();
+  private headers: Map<string, string[]> = new Map();
   private config?: any;
 
   constructor() {
@@ -45,20 +45,41 @@ abstract class HttpEntityEnclosingRequestBase {
   }
 
   // 添加请求头
-  addHeader(name: string, value: Header): void {
-    if (!this.headers[name]) {
-      this.headers[name] = [];
+  // addHeader(name: string, value: string): void {
+  //   // if (!this.headers[name]) {
+  //   //   this.headers[name] = [];
+  //   // }
+  //   // this.headers[name].push(value);
+  // }
+  addHeader(
+    headersMap: Map<string, { name: string; value: string }[]>,
+  ): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+
+    for (const [key, items] of headersMap) {
+      result[key] = items.map((item) => item.value);
     }
-    this.headers[name].push(value);
+
+    return result;
   }
 
   // 获取所有请求头
-  getAllHeaders(): Record<string, string> {
-    const flatHeaders: Record<string, string> = {};
-    Object.entries(this.headers).forEach(([key, values]) => {
-      flatHeaders[key] = values.join(', ');
-    });
-    return flatHeaders;
+  getAllHeaders(): Map<string, string[]> {
+    // const flatHeaders: Record<string, string> = {};
+    // Object.entries(this.headers).forEach(([key, values]) => {
+    //   flatHeaders[key] = values.join(', ');
+    // });
+    const axiosHeaders: Record<string, string> = {};
+
+    for (const key in headersMap) {
+      if (key === 'Set-Cookie') {
+        // 可选：单独处理 Set-Cookie，留成数组
+        continue;
+      }
+
+      axiosHeaders[key] = headersMap[key].join(', ');
+    }
+    return axiosHeaders;
   }
 
   // 设置请求配置
@@ -156,7 +177,12 @@ export class AsyncHttpConnPoolUtil {
     headers?: Map<string, Header[]>,
   ): Promise<AxiosResponse> {
     const stringEntity = requestBody; // 对应Java的StringEntity
-    return AsyncHttpConnPoolUtil.doInternalPost(url, stringEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPost(
+      url,
+      stringEntity,
+      120,
+      headers,
+    );
   }
 
   /**
@@ -175,6 +201,7 @@ export class AsyncHttpConnPoolUtil {
     return AsyncHttpConnPoolUtil.doInternalPost(
       url,
       urlEncodedFormEntity,
+      120,
       headers,
     );
   }
@@ -196,7 +223,7 @@ export class AsyncHttpConnPoolUtil {
       AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
     });
     const httpEntity = multipartEntityBuilder;
-    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, 120, headers);
   }
 
   /**
@@ -216,7 +243,7 @@ export class AsyncHttpConnPoolUtil {
       AsyncHttpConnPoolUtil.addBinaryBody(multipartEntityBuilder, key, value);
     });
     const httpEntity = multipartEntityBuilder;
-    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, 120, headers);
   }
 
   /**
@@ -248,7 +275,7 @@ export class AsyncHttpConnPoolUtil {
     }
 
     const httpEntity = multipartEntityBuilder;
-    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPost(url, httpEntity, 120, headers);
   }
 
   /**
@@ -268,7 +295,7 @@ export class AsyncHttpConnPoolUtil {
       AsyncHttpConnPoolUtil.addTextBody(multipartEntityBuilder, key, value);
     });
     const httpEntity = multipartEntityBuilder;
-    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, 120, headers);
   }
 
   /**
@@ -300,7 +327,7 @@ export class AsyncHttpConnPoolUtil {
     }
 
     const httpEntity = multipartEntityBuilder;
-    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, headers);
+    return AsyncHttpConnPoolUtil.doInternalPut(url, httpEntity, 120, headers);
   }
 
   private static async doInternalPost(
@@ -357,11 +384,13 @@ export class AsyncHttpConnPoolUtil {
 
     // 设置headers
     if (headers) {
-      Object.entries(headers).forEach(([key, values]) => {
-        values.forEach((value) => {
-          httpEntityEnclosingRequestBase.addHeader(key, value);
-        });
-      });
+      //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      //   for (const [key, arr] of headers) {
+      //     for (const item of arr) {
+      //       httpEntityEnclosingRequestBase.addHeader(item.name, item.value);
+      //     }
+      //   }
+      httpEntityEnclosingRequestBase.addHeader(headers);
     }
 
     try {
@@ -373,14 +402,13 @@ export class AsyncHttpConnPoolUtil {
         timeout,
       };
 
+      console.log(`发起请求:config`, config);
       const response =
         await AsyncHttpConnPoolUtil.asyncHttpClient.request(config);
+      console.log(`请求结果:response`, response);
       return response;
     } catch (error) {
-      AsyncHttpConnPoolUtil.logger.error(
-        `HTTP request failed: ${error.message}`,
-        error,
-      );
+      console.error(`请求失败:error`, error);
       throw error;
     }
   }
@@ -395,6 +423,7 @@ export class AsyncHttpConnPoolUtil {
     try {
       const response = await AsyncHttpConnPoolUtil.doGet(
         'https://httpbin.org/get',
+        1200,
       );
       AsyncHttpConnPoolUtil.logger.log(`响应状态: ${response.status}`);
       AsyncHttpConnPoolUtil.logger.log(

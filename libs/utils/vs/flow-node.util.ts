@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import * as vm from 'vm';
@@ -900,6 +901,7 @@ export class FlowNodeUtil {
   public static getActualOutputPorts(
     ports: VsPort[],
     nodeId2node: Map<string, VsNode>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     endNodeId2node: Map<string, VsNode>,
   ): VsPort[] {
     const actualOutputPorts: VsPort[] = [];
@@ -1295,6 +1297,7 @@ export class FlowNodeUtil {
       const properties = JSON.parse(port.properties) as PortProperties;
       const additionDefine = properties.additionDefine;
       return additionDefine || '';
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return '';
     }

@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsOptional } from 'class-validator';
-import { VsDataConvertFieldTypeEnum } from '../enums/vs-data-convert-field-type.enum';
 import { Logger } from '@nestjs/common';
+import { VsDataConvertFieldTypeEnum } from '@app/enum/VsDataConvertFieldTypeEnum';
 
 /**
  * 树形结构表示映射关系中的平铺结构数据
