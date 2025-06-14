@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:dev-vs-adapter": "nest start --watch vs-adapter",
     "start:debug": "nest start --debug --watch",
-    "start:debug-vs-adapter": "NODE_ENV=development nest start --debug --watch vs-adapter",
+    "start:debug-vs-adapter": "nest start --debug --watch vs-adapter",
     "start:prod": "node dist/apps/graph-sys/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

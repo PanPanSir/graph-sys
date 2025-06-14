@@ -49,7 +49,7 @@ export class FlowService {
   async call(): Promise<void> {
     try {
       // 构建URL
-      const url = this.changeUrlWhenPathVariable('http://www.dafang.com/fhir');
+      const url = this.changeUrlWhenPathVariable('https://api.btstu.cn/tst/api.php?text=%E4%BD%A0%E5%A5%BD');
       const urlWithParams = HttpUtil.makeUrlWithParams(
         url,
         this.getRequestParam(),
@@ -69,7 +69,7 @@ export class FlowService {
           // 执行异步POST请求
           const response: AxiosResponse = await AsyncHttpConnPoolUtil.doGet(
             urlWithParams,
-            1200,
+            5000,
             headerMap,
           );
 

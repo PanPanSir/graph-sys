@@ -16,7 +16,7 @@ export interface MultiValueMap<K, V> {
 abstract class HttpEntityEnclosingRequestBase {
   private uri: string;
   private entity: any;
-  private headers: Map<string, string[]> = new Map();
+  private headers: Map<string, Header[]> = new Map();
   private config?: any;
 
   constructor() {
@@ -52,7 +52,7 @@ abstract class HttpEntityEnclosingRequestBase {
   //   // this.headers[name].push(value);
   // }
   addHeader(
-    headersMap: Map<string, { name: string; value: string }[]>,
+    headersMap: Map<string,Header[]>,
   ): Record<string, string[]> {
     const result: Record<string, string[]> = {};
 
@@ -64,20 +64,20 @@ abstract class HttpEntityEnclosingRequestBase {
   }
 
   // 获取所有请求头
-  getAllHeaders(): Map<string, string[]> {
+  getAllHeaders(): Record<string, string[] | string> {
     // const flatHeaders: Record<string, string> = {};
     // Object.entries(this.headers).forEach(([key, values]) => {
     //   flatHeaders[key] = values.join(', ');
     // });
     const axiosHeaders: Record<string, string> = {};
 
-    for (const key in headersMap) {
+    for (const key in this.headers) {
       if (key === 'Set-Cookie') {
         // 可选：单独处理 Set-Cookie，留成数组
         continue;
       }
 
-      axiosHeaders[key] = headersMap[key].join(', ');
+      axiosHeaders[key] = this.headers[key].join(', ');
     }
     return axiosHeaders;
   }

@@ -20,11 +20,11 @@ export class FlowController {
     ]);
     const requestParam = new Map([['test', 'value']]);
 
-    const service = new FlowService();
-    service.initialize(
+
+    this.flowService.initialize(
       'test-node-123',
       JSON.stringify({
-        url: 'https://jsonplaceholder.typicode.com/posts/1', // 测试API
+        url: 'https://jsonplaceholder.typicode.com/posts?userId=2', // 测试API
         method: 'GET',
       }),
       headers,
@@ -32,9 +32,9 @@ export class FlowController {
     );
 
     try {
-      await service.call();
+      await this.flowService.call();
       console.log('✅ 请求成功');
-      console.log('响应体:', service.getOutputResponseBody());
+      console.log('响应体:', this.flowService.getOutputResponseBody());
     } catch (error) {
       console.error('❌ 请求失败:', error.message);
     }
