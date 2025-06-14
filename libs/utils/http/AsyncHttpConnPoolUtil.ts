@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import * as https from 'https';
+import * as http from 'http';
 import * as FormData from 'form-data';
 
 export interface Header {
@@ -45,42 +46,29 @@ abstract class HttpEntityEnclosingRequestBase {
   }
 
   // 添加请求头
-  // addHeader(name: string, value: string): void {
-  //   // if (!this.headers[name]) {
-  //   //   this.headers[name] = [];
-  //   // }
-  //   // this.headers[name].push(value);
-  // }
   addHeader(
-    headersMap: Map<string,Header[]>,
-  ): Record<string, string[]> {
-    const result: Record<string, string[]> = {};
-
-    for (const [key, items] of headersMap) {
-      result[key] = items.map((item) => item.value);
+   header: Header,
+  ) {
+    if(!this.headers[header.name]) {
+      this.headers[header.name] = [];
     }
-
-    return result;
+    this.headers[header.name].push(header.value);
   }
 
   // 获取所有请求头
-  getAllHeaders(): Record<string, string[] | string> {
-    // const flatHeaders: Record<string, string> = {};
-    // Object.entries(this.headers).forEach(([key, values]) => {
-    //   flatHeaders[key] = values.join(', ');
-    // });
-    const axiosHeaders: Record<string, string> = {};
+    // 获取所有请求头
+    getAllHeaders(): Record<string, string[] | string> {
+      const axiosHeaders: Record<string, string> = {};
 
-    for (const key in this.headers) {
-      if (key === 'Set-Cookie') {
-        // 可选：单独处理 Set-Cookie，留成数组
-        continue;
+      for (const key in this.headers) {
+        if (key === 'Set-Cookie') {
+          //单独处理 Set-Cookie，留成数组
+          continue;
+        }
+        axiosHeaders[key] = this.headers[key].join(', ');
       }
-
-      axiosHeaders[key] = this.headers[key].join(', ');
+      return axiosHeaders;
     }
-    return axiosHeaders;
-  }
 
   // 设置请求配置
   setConfig(config: any): void {
@@ -133,20 +121,53 @@ export class AsyncHttpConnPoolUtil {
   }
 
   public static getAsyncHttpClient(): AxiosInstance {
-    // 配置超时和连接池
-    const httpsAgent = new https.Agent({
-      maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
-      maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
-      keepAlive: true,
-      rejectUnauthorized: false, // 对应Java的TrustSelfSignedStrategy
-    });
+    // // 配置超时和连接池
+    // const httpsAgent = new https.Agent({
+    //   maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
+    //   maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
+    //   keepAlive: true,
+    //   rejectUnauthorized: false, // 对应Java的TrustSelfSignedStrategy
+    // });
 
-    return axios.create({
-      timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-      httpsAgent: httpsAgent,
-      // 对应Java的RequestConfig
-      // connectTimeout在Node.js中通过httpsAgent的timeout处理
-    });
+    // return axios.create({
+    //   timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
+    //   httpsAgent: httpsAgent,
+    //   // 对应Java的RequestConfig
+    //   // connectTimeout在Node.js中通过httpsAgent的timeout处理
+    // });
+      // HTTP Agent 配置
+  const httpAgent = new http.Agent({
+    maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE, // 每个域名最大连接数
+    maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL, // 总最大连接数
+    keepAlive: true, // 启用连接复用
+    timeout: AsyncHttpConnPoolUtil.CONNECT_TIMEOUT, // 连接超时
+    keepAliveMsecs: 30000, // Keep-Alive 超时时间
+    maxFreeSockets: 10, // 最大空闲连接数
+    scheduling: 'fifo' // 连接调度策略
+  });
+
+  // HTTPS Agent 配置
+  const httpsAgent = new https.Agent({
+    maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
+    maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
+    keepAlive: true,
+    timeout: AsyncHttpConnPoolUtil.CONNECT_TIMEOUT, // 添加连接超时
+    keepAliveMsecs: 30000, // Keep-Alive 超时时间
+    maxFreeSockets: 10, // 最大空闲连接数
+    rejectUnauthorized: false, // 对应Java的TrustSelfSignedStrategy
+    scheduling: 'fifo' // 连接调度策略
+  });
+
+  return axios.create({
+    timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT, // 请求超时
+    httpAgent: httpAgent, // 添加 HTTP Agent
+    httpsAgent: httpsAgent,
+    maxRedirects: 5, // 最大重定向次数
+    maxContentLength: 50 * 1024 * 1024, // 最大响应体大小 50MB
+    maxBodyLength: 50 * 1024 * 1024, // 最大请求体大小 50MB
+    // 对应Java的RequestConfig
+    validateStatus: (status) => status < 500, // 只有5xx才认为是错误
+  });
   }
 
   public static async doGet(
@@ -382,16 +403,16 @@ export class AsyncHttpConnPoolUtil {
       httpEntityEnclosingRequestBase.setEntity(httpEntity);
     }
 
-    // 设置headers
-    if (headers) {
-      //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      //   for (const [key, arr] of headers) {
-      //     for (const item of arr) {
-      //       httpEntityEnclosingRequestBase.addHeader(item.name, item.value);
-      //     }
-      //   }
-      httpEntityEnclosingRequestBase.addHeader(headers);
-    }
+
+  // 设置headers
+  if (headers) {
+    //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for (const [key, arr] of headers) {
+        for (const item of arr) {
+          httpEntityEnclosingRequestBase.addHeader({name: item.name, value: item.value});
+        }
+      }
+  }
 
     try {
       const config: AxiosRequestConfig = {
@@ -405,7 +426,7 @@ export class AsyncHttpConnPoolUtil {
       console.log(`发起请求:config`, config);
       const response =
         await AsyncHttpConnPoolUtil.asyncHttpClient.request(config);
-      console.log(`请求结果:response`, response);
+      // console.log(`请求结果:response`, response);
       return response;
     } catch (error) {
       console.error(`请求失败:error`, error);

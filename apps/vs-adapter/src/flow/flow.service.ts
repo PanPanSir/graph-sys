@@ -22,7 +22,7 @@ export class FlowService {
   private nodeId: string;
   private nodeName: string;
   private body: string;
-  private requestHeader: Map<string, Header> = new Map();
+  private requestHeader: Map<string, Header[]> = new Map();
   private requestParam: Map<string, string> = new Map();
   private responseHeader: Map<string, string> = new Map();
   private outputResponseBody: string;
@@ -60,8 +60,9 @@ export class FlowService {
       const headerMap = new Map<string, Header[]>();
       this.requestHeader.forEach((value, key) => {
         const existingValues = headerMap.get(key) || [];
-        headerMap.set(key, [...existingValues, value]);
+        headerMap.set(key, [...existingValues, ...value]);
       });
+
 
       // 定义请求执行函数
       const runnable = async (): Promise<void> => {
@@ -154,11 +155,11 @@ export class FlowService {
     this.nodeName = nodeName;
   }
 
-  getRequestHeader(): Map<string, Header> {
+  getRequestHeader(): Map<string, Header[]> {
     return this.requestHeader;
   }
 
-  setRequestHeader(requestHeader: Map<string, Header>): void {
+  setRequestHeader(requestHeader: Map<string, Header[]>): void {
     this.requestHeader = requestHeader;
   }
 
