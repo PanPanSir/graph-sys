@@ -12,6 +12,7 @@ import {
   VsPortRouteMetaSourceTypeExpression,
 } from '@app/enum/port.route.enum';
 import { FlowNodeUtil } from '@app/utils/vs/flow-node.util';
+import { VsPortDetailQueryReq } from './dto/VsPortDetailQueryReq.dto';
 
 @Injectable()
 export class PortService {
@@ -236,7 +237,7 @@ export class PortService {
           );
         } else if (nodeTaskType === VsNodeTaskTypeEnum.CONVERT) {
           // 纯脚本组件
-          script = this.generatePortScriptWhenRouteTaskType(
+          script = this.generatePortScriptWhenConvertTaskType(
             portId,
             reqProp,
             nodeId,
@@ -263,7 +264,7 @@ export class PortService {
       } else {
         if (nodeTaskType === VsNodeTaskTypeEnum.END) {
           // 结束组件
-          script = this.generatePortScriptWhenRouteTaskType(
+          script = this.generatePortScriptWhenEndTaskType(
             portId,
             reqProp,
             nodeId,
@@ -410,6 +411,20 @@ export class PortService {
 
     return exp;
   }
+  generatePortScriptWhenConvertTaskType(portId: string,  reqProp: VsPortProp,  nodeId: string) {
+    const script = reqProp.script;
+    if(!script) {
+      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`)
+    }
+    return script;
+  }
+  generatePortScriptWhenEndTaskType(portId: string,  reqProp: VsPortProp,  nodeId: string) {
+    const script = reqProp.script;
+    if(!script) {
+      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`)
+    }
+    return script;
+  }
   generatePortScriptWhenHttpTaskType(
     portId: string,
     reqProp: VsPortProp,
@@ -478,5 +493,23 @@ export class PortService {
       );
     }
     return execScript;
+  }
+  async detailQuery(req: VsPortDetailQueryReq) {
+    const vsPort = await this.prismaService.t_vs_port.findUnique({
+      where: {
+        id: req.id,
+      },
+    });
+    return {
+         id: vsPort.id,
+         projectId: vsPort.projectId,
+         nodeId: vsPort.nodeId,
+         type: vsPort.type,
+         sourceApiType: vsPort.sourceApiType,
+         targetApiType: vsPort.targetApiType,
+         sourceApiId: vsPort.sourceApiId,
+         targetApiId: vsPort.targetApiId,
+         properties: vsPort.properties,
+  };
   }
 }

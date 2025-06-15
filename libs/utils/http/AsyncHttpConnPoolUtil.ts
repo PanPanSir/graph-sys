@@ -121,21 +121,6 @@ export class AsyncHttpConnPoolUtil {
   }
 
   public static getAsyncHttpClient(): AxiosInstance {
-    // // 配置超时和连接池
-    // const httpsAgent = new https.Agent({
-    //   maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE,
-    //   maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL,
-    //   keepAlive: true,
-    //   rejectUnauthorized: false, // 对应Java的TrustSelfSignedStrategy
-    // });
-
-    // return axios.create({
-    //   timeout: AsyncHttpConnPoolUtil.SOCKET_TIMEOUT,
-    //   httpsAgent: httpsAgent,
-    //   // 对应Java的RequestConfig
-    //   // connectTimeout在Node.js中通过httpsAgent的timeout处理
-    // });
-      // HTTP Agent 配置
   const httpAgent = new http.Agent({
     maxSockets: AsyncHttpConnPoolUtil.DEFAULT_MAX_PER_ROUTE, // 每个域名最大连接数
     maxTotalSockets: AsyncHttpConnPoolUtil.MAX_TOTAL, // 总最大连接数

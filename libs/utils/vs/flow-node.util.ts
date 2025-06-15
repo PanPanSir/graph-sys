@@ -252,31 +252,19 @@ export class FlowNodeUtil {
     }
   `;
 
+
+
   /**
-   * HTTP POST请求执行模板
-   * 对应Java中的NODE_HTTP_TASK_POST_EXEC_TEMPLATE
+   * HTTP GET请求执行模板
+   * 对应Java中的NODE_HTTP_TASK_GET_EXEC_TEMPLATE
    */
-  private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
-    // HTTP POST请求执行
-      try {
-      // 构建URL
-      const url = this.changeUrlWhenPathVariable(urlTemplate);
-      const urlWithParams = this.httpUtil.makeUrlWithParams(url, this.getRequestParam());
-
-      // 构建请求头
-      const headerMap: MultiValueMap<string, HttpHeader> = {};
-      for (const [key, value] of this.getRequestHeader()) {
-        headerMap[key] = [{ name: key, value }];
-      }
-
-      // 定义请求执行函数
-      const executeRequest = async (): Promise<void> => {
-        try {
+  private static readonly NODE_HTTP_TASK_GET_EXEC_TEMPLATE = `
+         try {
           // 执行异步POST请求
-          const response: AxiosResponse = await this.asyncHttpConnPoolUtil.doPost(
+          const response: AxiosResponse = await AsyncHttpConnPoolUtil.doGet(
             urlWithParams,
-            this.getInputRequestBody(),
-            headerMap
+            5000,
+            headerMap,
           );
 
           const responseCode = response.status;
@@ -288,75 +276,130 @@ export class FlowNodeUtil {
           }
 
           // 设置响应体
-          this.setOutputResponseBody(typeof responseData === 'string' ? responseData : JSON.stringify(responseData));
+          this.setOutputResponseBody(
+            typeof responseData === 'string'
+              ? responseData
+              : JSON.stringify(responseData),
+          );
         } catch (error) {
           this.logger.error(
             \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}\`,
-            error
+            error,
           );
-          throw new ScriptFailedExecException(
-            \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=\${error.message}\`
+          throw new ServiceUnavailableException(
+            \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=\${error.message}\`,
           );
         }
       };
 
       // 执行请求（带熔断器支持）
-      const circuitBreaker = this.getCircuitBreaker();
+      const circuitBreaker = this.circuitBreaker;
       if (circuitBreaker) {
         try {
           // 使用熔断器执行请求
-          await circuitBreaker.fire();
-          await executeRequest();
+          //           - HTTP请求只有在熔断器允许的情况下才会执行
+          // - 资源节省 : 熔断状态下不会浪费网络资源和时间
+          // - 快速失败 : 熔断状态下立即返回错误，不需要等待超时
+          await circuitBreaker.fire(runnable);
         } catch (error) {
           // 检查是否是熔断器异常
-          if (error.name === 'OpenCircuitError' || error.message.includes('circuit')) {
+          if (
+            error.name === 'OpenCircuitError' ||
+            error.message.includes('circuit')
+          ) {
             this.logger.error(
               \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}, because it is in FUSED state\`,
-              error
+              error,
             );
-            throw new ScriptFailedExecException(
-              \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=接口已熔断\`
+            throw new ServiceUnavailableException(
+              \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=接口已熔断\`,
             );
           }
           throw error;
         }
       } else {
         // 直接执行请求
-        await executeRequest();
+        await runnable();
       }
     } catch (error) {
-      // 重新抛出异常
-      if (error instanceof ScriptFailedExecException) {
-        throw error;
-      }
-      throw new ScriptFailedExecException(
-        \`请求节点[\${this.getNodeName()}]失败,msg=\${error.message}\`
+      throw new ServiceUnavailableException(
+        \`请求节点[\${this.getNodeName()}]失败,msg=\${error.message}\`,
       );
     }
   `;
-
-  /**
-   * HTTP GET请求执行模板
-   * 对应Java中的NODE_HTTP_TASK_GET_EXEC_TEMPLATE
+/**
+   * HTTP POST请求执行模板
+   * 对应Java中的NODE_HTTP_TASK_POST_EXEC_TEMPLATE
    */
-  private static readonly NODE_HTTP_TASK_GET_EXEC_TEMPLATE = `
-    // HTTP GET请求执行
-    try {
-      const url = this.changeUrlWhenPathVariable('%s');
-      const headers = Object.fromEntries(this.requestHeaders);
-      const params = Object.fromEntries(this.requestParams);
-      const response = await this.httpService.get(url, {
-        headers,
-        params,
-        timeout: %d
-      }).toPromise();
-      this.outputResponseBody = JSON.stringify(response.data);
-    } catch (error) {
-      this.logger.error('HTTP GET请求失败:', error);
-      throw error;
-    }
-  `;
+private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
+         try {
+          // 执行异步POST请求
+          const response: AxiosResponse = await AsyncHttpConnPoolUtil.doPost(
+            urlWithParams,
+            5000,
+            headerMap,
+          );
 
+          const responseCode = response.status;
+          const responseData = response.data;
+
+          // 检查响应状态
+          if (responseCode !== 200 || responseData == null) {
+            throw new Error(\`状态码=\${responseCode},响应体=\${responseData}\`);
+          }
+
+          // 设置响应体
+          this.setOutputResponseBody(
+            typeof responseData === 'string'
+              ? responseData
+              : JSON.stringify(responseData),
+          );
+        } catch (error) {
+          this.logger.error(
+            \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}\`,
+            error,
+          );
+          throw new ServiceUnavailableException(
+            \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=\${error.message}\`,
+          );
+        }
+      };
+
+      // 执行请求（带熔断器支持）
+      const circuitBreaker = this.circuitBreaker;
+      if (circuitBreaker) {
+        try {
+          // 使用熔断器执行请求
+          //           - HTTP请求只有在熔断器允许的情况下才会执行
+          // - 资源节省 : 熔断状态下不会浪费网络资源和时间
+          // - 快速失败 : 熔断状态下立即返回错误，不需要等待超时
+          await circuitBreaker.fire(runnable);
+        } catch (error) {
+          // 检查是否是熔断器异常
+          if (
+            error.name === 'OpenCircuitError' ||
+            error.message.includes('circuit')
+          ) {
+            this.logger.error(
+              \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}, because it is in FUSED state\`,
+              error,
+            );
+            throw new ServiceUnavailableException(
+              \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=接口已熔断\`,
+            );
+          }
+          throw error;
+        }
+      } else {
+        // 直接执行请求
+        await runnable();
+      }
+    } catch (error) {
+      throw new ServiceUnavailableException(
+        \`请求节点[\${this.getNodeName()}]失败,msg=\${error.message}\`,
+      );
+    }
+`;
   /**
    * 单输出调用方法模板
    * 对应Java中的SINGLE_OUTPUT_CALL_METHOD_TEMPLATE
