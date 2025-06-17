@@ -1357,28 +1357,6 @@ export class FlowNodeUtil {
   }
 
   /**
-   * 创建运行时流程
-   * @param body 请求体
-   * @param requestHeader 请求头
-   * @param requestParam 请求参数
-   * @param responseHeader 响应头
-   * @param execFlow 执行流程
-   * @returns 流程节点任务
-   * @throws DataConsistencyException 数据一致性异常
-   */
-  public makeRtFlow(
-    body: string,
-    requestHeader: Map<string, string>,
-    requestParam: Map<string, string>,
-    responseHeader: Map<string, string>,
-    execFlow: any, // 这里应该定义具体的执行流程接口
-  ): FlowNodeTask {
-    // 这个方法需要根据具体的执行流程结构来实现
-    // 由于涉及到动态类加载和实例化，在TypeScript中需要不同的实现方式
-    throw new Error('makeRtFlow方法需要根据具体需求实现');
-  }
-
-  /**
    * 处理流程执行
    * @param start 起始流程节点任务
    * @param msgId 消息ID
