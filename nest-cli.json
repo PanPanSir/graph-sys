@@ -72,6 +72,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/enum/tsconfig.lib.json"
       }
+    },
+    "vs-run": {
+      "type": "application",
+      "root": "apps/vs-run",
+      "entryFile": "main",
+      "sourceRoot": "apps/vs-run/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/vs-run/tsconfig.app.json"
+      }
     }
   }
 }
