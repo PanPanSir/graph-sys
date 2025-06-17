@@ -5,6 +5,7 @@ import { ResultInfo } from '@app/dto/result.dto';
 import { ProjectAddReqDto } from './dto/add-project-req.dto';
 import { ProjectQueryReqDTO } from './dto/project-query-req.dto';
 import { ProjectUpdateReqDtoDto } from './dto/update-project.dto';
+import { VsProjectCompileReq } from './dto/VsProjectCompileReq.dto';
 
 @Controller('ip/vsProject')
 export class ProjectController {
@@ -46,15 +47,15 @@ export class ProjectController {
   //     return new ResultInfo(result);
   //   }
 
-  //   @Post('compile')
-  //   async compile(@Body(ValidationPipe) req: ProjectCompileReq) {
-  //     const addTaskSuccess = await this.projectService.compile(req);
-  //     if (addTaskSuccess) {
-  //       return new ResultInfo(true, '操作成功,等稍后刷新页面查看编译结果');
-  //     } else {
-  //       return new ResultInfo(false, '当前编译任务过多,等稍后重新提交');
-  //     }
-  //   }
+  @Post('compile')
+  async compile(@Body(ValidationPipe) req: VsProjectCompileReq) {
+    const addTaskSuccess = await this.projectService.compile(req);
+    if (addTaskSuccess) {
+      return new ResultInfo(true, '操作成功,等稍后刷新页面查看编译结果');
+    } else {
+      return new ResultInfo(false, '当前编译任务过多,等稍后重新提交');
+    }
+  }
 
   //   @Post('compileSync')
   //   async compileSync(@Body(ValidationPipe) req: ProjectCompileReq) {

@@ -5,9 +5,10 @@ import {
   IsOptional,
   IsNotEmpty,
 } from 'class-validator';
-import { VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum//port.enum';
 import { VsPortProp } from './VsPortProp';
 import { VsPort } from '../entities/port.entity';
+import { PathParam } from './VsPortPropHttp';
 
 export class AddPortDto {
   @IsNotEmpty({
@@ -28,13 +29,31 @@ export class AddPortDto {
   @IsEnum(VsPortTypeEnum)
   type: VsPortTypeEnum;
 
-  @IsNumber()
-  @IsOptional()
-  contextCompApiId?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // contextCompApiId?: number;
 
-  @IsNumber()
   @IsOptional()
-  httpCompApiId?: number;
+  @IsEnum(VsHttpMethodEnum)
+  method?: VsHttpMethodEnum;
+
+  @IsOptional()
+  @IsString()
+  path?: string;
+
+  // @IsNumber()
+  // @IsOptional()
+  // httpCompApiId?: number;
+
+  @IsString()
+  @IsOptional()
+  url?: string;
+
+  @IsString()
+  @IsOptional()
+  requestTimeout?: string;
+
+  pathParams?: PathParam[];
 
   // @IsEnum(VsApiType)
   // @IsOptional()
@@ -63,9 +82,10 @@ export class AddPortDto {
     if (this.projectId) parts.push(`projectId=${this.projectId}`);
     if (this.nodeId) parts.push(`nodeId=${this.nodeId}`);
     if (this.type) parts.push(`type=${this.type}`);
-    if (this.contextCompApiId)
-      parts.push(`contextCompApiId=${this.contextCompApiId}`);
-    if (this.httpCompApiId) parts.push(`httpCompApiId=${this.httpCompApiId}`);
+    if (this.method && this.path)
+      parts.push(`method=${this.method}, path=${this.path}`);
+    if (this.method && this.url)
+      parts.push(`url=${this.url}, method=${this.method}`);
     // if (this.sourceApiType) parts.push(`sourceApiType=${this.sourceApiType}`);
     // if (this.targetApiType) parts.push(`targetApiType=${this.targetApiType}`);
     // if (this.sourceApiId && this.sourceApiId >= 0)
@@ -84,13 +104,20 @@ export class AddPortDto {
     vsPort.type = this.type;
 
     if (this.properties?.context != null) {
-      const apiId = this.properties.context.contextCompApiId;
-      vsPort.contextCompApiId = apiId;
+      // const apiId = this.properties.context.contextCompApiId;
+      // vsPort.contextCompApiId = apiId;
+      vsPort.method = this.properties.context.method;
+      vsPort.path = this.properties.context.path;
     }
 
     if (this.properties?.http != null) {
-      const apiId = this.properties.http.httpCompApiId;
-      vsPort.httpCompApiId = apiId;
+      // const apiId = this.properties.http.httpCompApiId;
+      // vsPort.httpCompApiId = apiId;
+      const { url, method, pathParams, requestTimeout } = this.properties.http;
+      vsPort.url = url;
+      vsPort.method = method;
+      vsPort.pathParams = pathParams;
+      vsPort.requestTimeout = requestTimeout;
     }
 
     if (this.properties?.dataMapping != null) {

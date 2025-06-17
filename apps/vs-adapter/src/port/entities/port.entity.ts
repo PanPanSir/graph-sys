@@ -1,5 +1,10 @@
-import { VsApiTypeEnum, VsPortTypeEnum } from '@app/enum//port.enum';
+import {
+  VsApiTypeEnum,
+  VsHttpMethodEnum,
+  VsPortTypeEnum,
+} from '@app/enum//port.enum';
 import { VsPortProp } from './port.prop.entity';
+import { PathParam } from '../dto/VsPortPropHttp';
 
 export class VsPort {
   // @IsNotEmpty({ message: '端口ID不能为空' })
@@ -23,11 +28,21 @@ export class VsPort {
 
   // @IsOptional()
   // @IsNumber()
-  contextCompApiId?: number;
+  // contextCompApiId?: number;
+
+  method?: VsHttpMethodEnum;
+
+  path?: string;
 
   // @IsOptional()
   // @IsNumber()
-  httpCompApiId?: number;
+  // httpCompApiId?: number;
+
+  url?: string;
+
+  // @IsOptional()
+  requestTimeout?: number; // 单位：毫秒
+  pathParams?: PathParam[];
 
   // @IsOptional()
   // @MaxLength(12, { message: '源API类型最大长度为12' })
@@ -56,8 +71,13 @@ export class VsPort {
     port.nodeId = prismaPort.nodeId;
     port.type = prismaPort.type as VsPortTypeEnum;
     port.properties = prismaPort.properties;
-    port.contextCompApiId = prismaPort.contextCompApiId;
-    port.httpCompApiId = prismaPort.httpCompApiId;
+    // port.contextCompApiId = prismaPort.contextCompApiId;
+    port.method = prismaPort.method;
+    port.path = prismaPort.path;
+    // port.httpCompApiId = prismaPort.httpCompApiId;
+    port.url = prismaPort.url;
+    port.requestTimeout = prismaPort.requestTimeout;
+    port.pathParams = prismaPort.pathParams;
     port.sourceApiType = prismaPort.sourceApiType;
     port.targetApiType = prismaPort.targetApiType;
     port.sourceApiId = prismaPort.sourceApiId;

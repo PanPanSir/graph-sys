@@ -29,8 +29,10 @@ model t_vs_port {
   nodeId           String    @map("node_id") @db.VarChar(64)
   type             String    @db.VarChar(16)
   properties       Json
-  contextCompApiId Int?      @map("context_comp_api_id")
-  httpCompApiId    Int?      @map("http_comp_api_id")
+  // contextCompApiId Int?      @map("context_comp_api_id")
+  // method           String?   @db.VarChar(8)
+  // path             String?   @db.VarChar(128)
+  // httpCompApiId    Int?      @map("http_comp_api_id")
   sourceApiType    String?   @map("source_api_type") @db.VarChar(12)
   targetApiType    String?   @map("target_api_type") @db.VarChar(12)
   sourceApiId      Int?      @map("source_api_id")
@@ -44,8 +46,8 @@ model t_vs_port {
   @@index([targetApiId])
   @@index([targetApiType, targetApiId], name:"target_api_type_api_id")
   @@index([sourceApiType, sourceApiId], name:"source_api_type_api_id")
-  @@index([contextCompApiId], name:"context_api_id")
-  @@index([httpCompApiId], name:"http_api_id")
+  // @@index([method, path], name:"method_path")
+  // @@index([httpCompApiId], name:"http_api_id")
 }
 
 model t_vs_node {

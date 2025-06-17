@@ -23,13 +23,22 @@ export class UpdatePortDto {
     vsPort.id = this.id;
 
     if (this.properties?.context != null) {
-      const apiId = this.properties.context.contextCompApiId;
-      vsPort.contextCompApiId = apiId;
+      // const apiId = this.properties.context.contextCompApiId;
+      // vsPort.contextCompApiId = apiId;
+      const method = this.properties.context.method;
+      vsPort.method = method;
+      const path = this.properties.context.path;
+      vsPort.path = path;
     }
 
     if (this.properties?.http != null) {
-      const apiId = this.properties.http.httpCompApiId;
-      vsPort.httpCompApiId = apiId;
+      // const apiId = this.properties.http.httpCompApiId;
+      // vsPort.httpCompApiId = apiId;
+      const { url, method, pathParams, requestTimeout } = this.properties.http;
+      vsPort.url = url;
+      vsPort.method = method;
+      vsPort.pathParams = pathParams;
+      vsPort.requestTimeout = requestTimeout;
     }
 
     if (this.properties?.dataMapping != null) {

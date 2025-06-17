@@ -1,4 +1,3 @@
-
 import { IsNotEmpty, IsNumber, MaxLength } from 'class-validator';
 import { VsNodeProp } from './node.prop.entity';
 import { VsNodeTaskTypeEnum, VsNodeViewTypeEnum } from '@app/enum/node.enum';
@@ -23,7 +22,7 @@ export class VsNode {
   classBytes: Buffer;
 
   @IsNotEmpty({ message: '属性不能为空' })
-  properties: VsNodeProp;
+  properties: string;
 
   @IsNotEmpty({ message: '视图类型不能为空' })
   @MaxLength(16, { message: '视图类型最大长度为16' })

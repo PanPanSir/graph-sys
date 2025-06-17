@@ -12,6 +12,7 @@ import { VsExecFlow } from './Vs-exec-flow';
 import { VsLink } from 'apps/vs-adapter/src/link/entities/link.entity';
 import { VsNode } from 'apps/vs-adapter/src/node/entities/node.entity';
 import { VsPort } from 'apps/vs-adapter/src/port/entities/port.entity';
+import * as ts from 'typescript';
 
 /**
  * 路由元数据源类型枚举
@@ -22,6 +23,12 @@ export enum RouteMetaSourceType {
   REQ_PARAM = 'REQ_PARAM', // 请求参数
 }
 
+// 编译结果接口（替代Java的byte[]）
+export interface CompiledScript {
+  nodeId: string;
+  compiledCode: string; // 编译后的JavaScript代码
+  sourceMap?: string; // 可选的源码映射
+}
 /**
  * 端口属性接口
  * 对应Java中的VsPortProp
@@ -252,8 +259,6 @@ export class FlowNodeUtil {
     }
   `;
 
-
-
   /**
    * HTTP GET请求执行模板
    * 对应Java中的NODE_HTTP_TASK_GET_EXEC_TEMPLATE
@@ -327,11 +332,11 @@ export class FlowNodeUtil {
       );
     }
   `;
-/**
+  /**
    * HTTP POST请求执行模板
    * 对应Java中的NODE_HTTP_TASK_POST_EXEC_TEMPLATE
    */
-private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
+  private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
          try {
           // 执行异步POST请求
           const response: AxiosResponse = await AsyncHttpConnPoolUtil.doPost(
@@ -800,7 +805,7 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
     startNodeIdSet.forEach((id) => allNodeIdSet.add(id));
     endNodeIdSet.forEach((id) => allNodeIdSet.add(id));
 
-    // 获取流程的起始和目标节点
+    // 获取流程的起始节点和终止节点
     const startNodeId = FlowNodeUtil.getStartNodeId(
       allNodeIdSet,
       endNodeIdSet,
@@ -958,7 +963,7 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
         throw new DataConsistencyException(`无法找到节点,ID=${vsPort.nodeId}`);
       }
 
-      // 对大多数节点使用输出脚本
+      // 原子节点的输出端口没有问题，是实际的
       if (vsPort.type === VsPortTypeEnum.OUTPUT_PORT) {
         if (vsNode.viewType === VsNodeViewTypeEnum.ATOMIC) {
           actualOutputPorts.push(vsPort);
@@ -1026,15 +1031,18 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
           throw new Error(`无法找到端口,ID=${targetPort}`);
         }
 
+        // 结束节点
         const tempNode = nodeId2node.get(tempPort.nodeId);
         if (!tempNode) {
           throw new Error(`无法找到节点,ID=${tempPort.nodeId}`);
         }
-
+        // 开始节点为非 VsNodeViewTypeEnum.COMPOSITE，结束节点为 VsNodeViewTypeEnum.ATOMIC
+        // 注意，虚拟节点是前端自己构建的，后端不保存，后端会把VsNodeViewTypeEnum.COMPOSITE的输出端口作为二图层的输入端口
         if (tempNode.viewType === VsNodeViewTypeEnum.ATOMIC) {
           endNodeId = tempNode.id;
           break;
         } else {
+          // 当link的结束节点为复合组件时，寻找下一个link，把复合组件跳过，其下一个link的输出端口作为新的link的目标端口
           const tempLink = sourcePort2Link.get(targetPort);
           if (!tempLink) {
             throw new DataConsistencyException(
@@ -1100,6 +1108,7 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
 
     // 根据节点来进行遍历,生成任务脚本内容
     const flow = FlowNodeUtil.makeStFlow(links, nodes);
+    // 所有边的端口开始和目标节点
     const nodeIdsMap = FlowNodeUtil.getNodeIdsMap(flow, nodeId2node);
     const waitCompileNodeIds = nodeIdsMap.get(
       FlowNodeUtil.ALL_VALID_NODE_ID_KEY,
@@ -1219,6 +1228,7 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
    * @param nodeId2NodeName 节点ID到节点名称的映射
    * @returns 节点任务脚本
    * @throws DataConsistencyException 数据一致性异常
+   * 方法解释看文件：flow-node.md
    */
   public static makeNodeTaskScriptWhenMultiOutput(
     curNodeId: string,
@@ -1714,64 +1724,75 @@ private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
    * @param nodeId2NodeName 节点ID到节点名称的映射
    * @returns 节点ID到类字节码的映射
    */
+  // 主要编译方法 - 参数与Java版本一致
   public static async compileNodeTaskScript(
     nodeId2Script: Map<string, string>,
     nodeId2NodeName: Map<string, string>,
-  ): Promise<Map<string, Uint8Array>> {
-    // 在JavaScript/TypeScript中，我们不需要编译字节码
-    // 而是直接执行JavaScript代码或使用eval
-    // 这里我们返回一个包含脚本内容的映射
-    const nodeId2ClassBytes = new Map<string, Uint8Array>();
-    const promises: Promise<void>[] = [];
+  ): Promise<Map<string, CompiledScript>> {
+    // 使用Map存储编译结果（对应Java的Map<String, byte[]>）
+    const nodeId2CompiledScript = new Map<string, CompiledScript>();
+    const compilePromises: Promise<void>[] = [];
 
-    for (const [nodeId, script] of nodeId2Script) {
-      const promise = this.getClassBytes(nodeId, script)
-        .then((classBytes) => {
-          nodeId2ClassBytes.set(nodeId, classBytes);
-        })
-        .catch((error) => {
-          const nodeName = nodeId2NodeName.get(nodeId);
-          throw new ScriptCompileException(
-            `编译节点[${nodeName}]失败:\n${error.message}`,
-          );
-        });
-      promises.push(promise);
-    }
+    // TypeScript编译选项
+    const compilerOptions: ts.CompilerOptions = {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.CommonJS,
+      strict: true,
+      esModuleInterop: true,
+      skipLibCheck: true,
+      forceConsistentCasingInFileNames: true,
+      sourceMap: true, // 生成源码映射便于调试
+    };
 
-    // 等待所有编译任务完成
-    await Promise.all(promises);
-    return nodeId2ClassBytes;
-  }
+    // 并行编译所有节点脚本（对应Java的线程池处理）
+    for (const [nodeId, script] of nodeId2Script.entries()) {
+      const compileTask = async () => {
+        try {
+          const nodeName = nodeId2NodeName.get(nodeId) || nodeId;
 
-  /**
-   * 获取类字节码
-   * @param nodeId 节点ID
-   * @param script 脚本内容
-   * @returns 类字节码
-   */
-  public static async getClassBytes(
-    nodeId: string,
-    script: string,
-  ): Promise<Uint8Array> {
-    try {
-      // 在JavaScript/TypeScript中，我们将脚本内容转换为字节数组
-      // 这里使用TextEncoder来将字符串转换为Uint8Array
-      const encoder = new TextEncoder();
-      const scriptBytes = encoder.encode(script);
+          // 编译TypeScript代码
+          const result = ts.transpile(script, compilerOptions, `${nodeId}.ts`);
 
-      // 创建一个包含脚本信息的对象
-      const scriptInfo = {
-        nodeId,
-        script,
-        timestamp: Date.now(),
+          // 检查编译错误
+          if (!result || result.trim() === '') {
+            throw new ScriptCompileException(
+              `编译节点[${nodeName}]失败: 编译结果为空`,
+            );
+          }
+
+          // 存储编译结果
+          const compiledScript: CompiledScript = {
+            nodeId,
+            compiledCode: result,
+            sourceMap: undefined, // 如果需要可以添加sourceMap
+          };
+
+          nodeId2CompiledScript.set(nodeId, compiledScript);
+        } catch (error) {
+          const nodeName = nodeId2NodeName.get(nodeId) || nodeId;
+
+          if (error instanceof ScriptCompileException) {
+            throw error;
+          } else {
+            throw new ScriptCompileException(
+              `编译节点[${nodeName}]失败:\n${error.message}`,
+            );
+          }
+        }
       };
 
-      // 将对象序列化为JSON字符串，然后转换为字节数组
-      const jsonString = JSON.stringify(scriptInfo);
-      return encoder.encode(jsonString);
-    } catch (error) {
-      throw new ScriptCompileException(`编译脚本失败: ${error}`);
+      compilePromises.push(compileTask());
     }
+
+    // 等待所有编译任务完成（对应Java的future.get()）
+    try {
+      await Promise.all(compilePromises);
+    } catch (error) {
+      // 重新抛出编译异常
+      throw error;
+    }
+
+    return nodeId2CompiledScript;
   }
 
   /**

@@ -11,15 +11,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-// 假设这些枚举已经定义
-export enum VsHttpMethodEnum {
-  GET = 'GET',
-  POST = 'POST',
-  PUT = 'PUT',
-  DELETE = 'DELETE',
-  PATCH = 'PATCH',
-}
+import { VsHttpMethodEnum } from '@app/enum/port.enum';
 
 export class PathParam {
   // @ApiProperty({ description: '路径参数名' })
@@ -43,9 +35,9 @@ export class PathParam {
  */
 export class VsPortPropHttp {
   // @ApiProperty({ description: 'HTTP组件的接口ID' })
-  @IsNotEmpty({ message: '接口ID不能为空' })
-  @IsInt()
-  httpCompApiId: number;
+  // @IsNotEmpty({ message: '接口ID不能为空' })
+  // @IsInt()
+  // httpCompApiId: number;
 
   // @ApiPropertyOptional({ description: '路径参数信息', type: [PathParam] })
   @IsOptional()

@@ -4,7 +4,7 @@ export class VsPortPropHttp {
   // @ApiProperty({ description: 'HTTP组件的接口ID' })
   // @Column('bigint')
   // @IsNotEmpty({ message: '接口ID不能为空' })
-  httpCompApiId: number;
+  // httpCompApiId: number;
 
   // @ApiProperty({ description: '路径参数信息' })
   // @Column('json')

@@ -411,17 +411,25 @@ export class PortService {
 
     return exp;
   }
-  generatePortScriptWhenConvertTaskType(portId: string,  reqProp: VsPortProp,  nodeId: string) {
+  generatePortScriptWhenConvertTaskType(
+    portId: string,
+    reqProp: VsPortProp,
+    nodeId: string,
+  ) {
     const script = reqProp.script;
-    if(!script) {
-      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`)
+    if (!script) {
+      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`);
     }
     return script;
   }
-  generatePortScriptWhenEndTaskType(portId: string,  reqProp: VsPortProp,  nodeId: string) {
+  generatePortScriptWhenEndTaskType(
+    portId: string,
+    reqProp: VsPortProp,
+    nodeId: string,
+  ) {
     const script = reqProp.script;
-    if(!script) {
-      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`)
+    if (!script) {
+      throw new BadRequestException(`portId = ${portId}, nodeId=${nodeId}`);
     }
     return script;
   }
@@ -501,15 +509,15 @@ export class PortService {
       },
     });
     return {
-         id: vsPort.id,
-         projectId: vsPort.projectId,
-         nodeId: vsPort.nodeId,
-         type: vsPort.type,
-         sourceApiType: vsPort.sourceApiType,
-         targetApiType: vsPort.targetApiType,
-         sourceApiId: vsPort.sourceApiId,
-         targetApiId: vsPort.targetApiId,
-         properties: vsPort.properties,
-  };
+      id: vsPort.id,
+      projectId: vsPort.projectId,
+      nodeId: vsPort.nodeId,
+      type: vsPort.type,
+      sourceApiType: vsPort.sourceApiType,
+      targetApiType: vsPort.targetApiType,
+      sourceApiId: vsPort.sourceApiId,
+      targetApiId: vsPort.targetApiId,
+      properties: vsPort.properties,
+    };
   }
 }

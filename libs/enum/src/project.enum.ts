@@ -1,9 +1,9 @@
-export enum ProjectStateEnum {
+export enum VsProjectStateEnum {
   OFFLINE = 'OFFLINE',
   ONLINE = 'ONLINE',
 }
 
-export enum CompileStatusEnum {
+export enum VsCompileStatusEnum {
   COMPILING = 'COMPILING',
   QUERY_FAILED = 'QUERY_FAILED',
   COMPILE_FAILED = 'COMPILE_FAILED',
