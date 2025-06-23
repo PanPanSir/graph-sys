@@ -300,12 +300,12 @@ export class NodeService {
     // 添加第二图层的真实节点，并添加其ports
     const realNodes = childNodesMap[upLayerCompositeNodeId] || [];
     for (const node of realNodes) {
-      const ports = portsMap[node.id]?.ports.sort(
-        (a, b) => a.properties.order - b.properties.order,
-      ).map(port => ({
-        ...port,
-       properties: JSON.parse(port.properties),
-      }));
+      const ports = portsMap[node.id]?.ports
+        .sort((a, b) => a.properties.order - b.properties.order)
+        .map((port) => ({
+          ...port,
+          properties: JSON.parse(port.properties),
+        }));
       // 寻找其ports
       node.ports = ports;
       node.properties = JSON.parse(node.properties);

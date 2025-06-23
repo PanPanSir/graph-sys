@@ -1,10 +1,10 @@
 import { IsEnum } from 'class-validator';
-import { CompileStatusEnum } from '@app/enum//project.enum';
+import { VsCompileStatusEnum } from '@app/enum//project.enum';
 import { Transform } from 'class-transformer';
 
 export class CompileResultPropDto {
-  @IsEnum(CompileStatusEnum)
-  status: CompileStatusEnum;
+  @IsEnum(VsCompileStatusEnum)
+  status: VsCompileStatusEnum;
 
   msg: string;
 

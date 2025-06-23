@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsNumber,
-  IsEnum,
-  IsOptional,
-  IsNotEmpty,
-} from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsNotEmpty } from 'class-validator';
 import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum//port.enum';
 import { VsPortProp } from './VsPortProp';
 import { VsPort } from '../entities/port.entity';
@@ -114,7 +108,8 @@ export class AddPortDto {
       const { url, method, pathParams, requestTimeout } = this.properties.http;
       vsPort.url = url;
       vsPort.method = method;
-      vsPort.pathParams = pathParams;
+      // 兼容数据库，数据库层面 ： `schema.prisma` 中定义为pathParams为 Json? 类型
+      vsPort.pathParams = pathParams as any;
       vsPort.requestTimeout = requestTimeout;
     }
 

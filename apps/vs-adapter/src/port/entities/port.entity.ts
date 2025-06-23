@@ -3,7 +3,6 @@ import {
   VsHttpMethodEnum,
   VsPortTypeEnum,
 } from '@app/enum//port.enum';
-import { VsPortProp } from './port.prop.entity';
 import { PathParam } from '../dto/VsPortPropHttp';
 
 export class VsPort {
@@ -13,7 +12,7 @@ export class VsPort {
 
   // @IsNumber()
   // @IsNotEmpty({ message: '项目ID不能为空' })
-  projectId: number;
+  projectId: string;
 
   // @IsNotEmpty({ message: '节点ID不能为空' })
   // @MaxLength(64, { message: '节点ID最大长度为64' })

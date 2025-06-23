@@ -1,5 +1,5 @@
 import { IsNumber, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
-import { ProjectStateEnum } from '@app/enum//project.enum';
+import { VsProjectStateEnum } from '@app/enum//project.enum';
 
 export class Project {
   @IsNumber()
@@ -30,7 +30,7 @@ export class Project {
   properties: any;
 
   @IsNotEmpty({ message: '状态不能为空' })
-  state: ProjectStateEnum;
+  state: VsProjectStateEnum;
 
   createTime: Date;
 
@@ -45,7 +45,7 @@ export class Project {
     project.compileVersion = prismaProject.compile_version;
     project.method = prismaProject.method;
     project.properties = prismaProject.properties;
-    project.state = prismaProject.state as ProjectStateEnum;
+    project.state = prismaProject.state as VsProjectStateEnum;
     project.createTime = prismaProject.create_time;
     project.modifyTime = prismaProject.modify_time;
     return project;

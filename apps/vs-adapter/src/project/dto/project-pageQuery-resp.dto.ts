@@ -1,4 +1,4 @@
-import { ProjectStateEnum } from '@app/enum//project.enum';
+import { VsProjectStateEnum } from '@app/enum//project.enum';
 import { Project } from '../entities/project.entity';
 import { ProjectPropDto } from './project-prop.dto';
 
@@ -9,14 +9,14 @@ export class VsProjectPageQueryRespDto {
 
   description: string;
 
-  state: ProjectStateEnum;
+  state: VsProjectStateEnum;
 
   properties: ProjectPropDto;
   constructor(vsProject: Project) {
     this.id = vsProject.id;
     this.name = vsProject.name;
     this.description = vsProject.description;
-    this.state = vsProject.state as ProjectStateEnum;
+    this.state = vsProject.state as VsProjectStateEnum;
 
     // 如果属性为空，设置默认值
     if (!vsProject.properties) {
