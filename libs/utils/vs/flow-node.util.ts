@@ -223,6 +223,8 @@ export class FlowNodeUtil {
    */
   private static readonly MULTI_PORT_CALL_METHOD_TEMPLATE = `
     // 端口调用方法
+    // methodName为portId，
+    // setActivatedNodeId的值为当前link的endNodeId
     if (this.%s()) {
       this.setActivatedNodeId('%s');
       return;
@@ -409,16 +411,24 @@ export class FlowNodeUtil {
    * 单输出调用方法模板
    * 对应Java中的SINGLE_OUTPUT_CALL_METHOD_TEMPLATE
    */
+  // super.call()继承父类FlowNodeTask，但单输出端口的情况，node中的脚本无需做当前activenode等逻辑的重写
+  // 但MULTI_PORT_CALL_METHOD_TEMPLATE的多输出端口node就不做简单FlowNodeTask的继承了，需要根据实际情况重写
   private static readonly SINGLE_OUTPUT_CALL_METHOD_TEMPLATE = `
-    // 单输出端口执行
+    super.call();
     %s
-    this.outputRequestBody = this.inputRequestBody;
   `;
 
   /**
    * 默认调用方法体
    * 对应Java中的DEFAULT_CALL_METHOD_SET_BODY
+   * 都是flowNodeTask中定义的，执行的时候会用到
    */
+  // // previous node output** as current node input**
+  // private transient String inputRequestBody;
+  // private transient String inputResponseBody;
+  // // current node output** as next node input**
+  // private transient String outputRequestBody;
+  // private transient String outputResponseBody;
   private static readonly DEFAULT_CALL_METHOD_SET_BODY = `
     // 默认输出设置
     this.outputRequestBody = this.inputRequestBody;
@@ -907,6 +917,7 @@ export class FlowNodeUtil {
    * @param script 脚本内容
    * @returns 编译后的脚本
    * @throws ScriptCompileException 脚本编译异常
+   * todo: 如果script中含有import 依赖包，怎么办？!!!!!
    */
   public static async getCompiledScript(
     nodeId: string,
@@ -1049,6 +1060,7 @@ export class FlowNodeUtil {
               `以节点[${nodeId2NodeName.get(startNodeId) || ''}]开始的路径上存在端口未连接边`,
             );
           }
+          // 更新link的targetPort，进入下一轮循环，会更新endNodeId
           targetPort = tempLink.targetPort;
         }
       }
@@ -1115,6 +1127,7 @@ export class FlowNodeUtil {
     );
 
     for (const curNodeId of waitCompileNodeIds) {
+      // nodeId2StartLinks是以所有边的开始节点为key的
       // 获取以当前节点作为开始节点的边
       const curLinks = nodeId2StartLinks.get(curNodeId) || [];
       const curOutputPorts = nodeId2OutputPorts.get(curNodeId) || [];
@@ -1137,7 +1150,7 @@ export class FlowNodeUtil {
           curOutputPorts,
           nodeId2NodeName,
         );
-        // 终止节点只会有1个输出端口         makeNodeTaskScripWhenSingleOutput
+        // 终止节点只会有1个输出端口，里面内容为脚本，只不过前端不显示endport罢了         makeNodeTaskScripWhenSingleOutput
         curNodeTaskScript = FlowNodeUtil.makeNodeTaskScripWhenSingleOutput(
           curNodeId,
           curOutputPorts,
@@ -1278,12 +1291,27 @@ export class FlowNodeUtil {
         );
       }
 
+      // private static readonly MULTI_PORT_BOOL_METHOD_TEMPLATE = `
+      //   // 端口条件判断方法
+      //   private %s(): boolean {
+      //     %s
+      //   }
+      // `;
       const curPortScript = FlowNodeUtil.generatePortBoolScriptSourceCode(
         portId,
         propScript,
       );
       portScripts[i] = curPortScript;
 
+      // private static readonly MULTI_PORT_CALL_METHOD_TEMPLATE = `
+      //   // 端口调用方法
+      //   // methodName为portId，就是上面FlowNodeUtil.generatePortBoolScriptSourceCode curPortScript生成的Boolean判断方法
+      //   // setActivatedNodeId的值为当前link的endNodeId
+      //   if (this.%s()) {
+      //     this.setActivatedNodeId('%s');
+      //     return;
+      //   }
+      // `;
       const curCallScript = FlowNodeUtil.generatePortCallScriptSourceCode(
         portId,
         curLink.targetId,

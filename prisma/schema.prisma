@@ -30,8 +30,8 @@ model t_vs_port {
   type             String    @db.VarChar(16)
   properties       Json
   // contextCompApiId Int?      @map("context_comp_api_id")
-  // method           String?   @db.VarChar(8)
-  // path             String?   @db.VarChar(128)
+  method           String?   @db.VarChar(8)
+  path             String?   @db.VarChar(128)
   // httpCompApiId    Int?      @map("http_comp_api_id")
   sourceApiType    String?   @map("source_api_type") @db.VarChar(12)
   targetApiType    String?   @map("target_api_type") @db.VarChar(12)

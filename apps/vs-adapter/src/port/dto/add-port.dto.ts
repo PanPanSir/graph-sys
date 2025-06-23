@@ -16,13 +16,11 @@ export class AddPortDto {
   })
   @IsString()
   id: string;
-  @IsNumber()
-  projectId: number;
+  projectId: string;
 
   @IsString()
   nodeId: string;
 
-  @IsString()
   @IsOptional()
   properties?: VsPortProp;
 

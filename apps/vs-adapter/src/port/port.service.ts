@@ -81,7 +81,7 @@ export class PortService {
           type: VsPortTypeEnum.OUTPUT_PORT,
         },
       });
-      if (count > 1) {
+      if (count >= 1) {
         throw new BadRequestException(
           `${node.taskType}节点ID=${req.nodeId}下存在多个输出端口,请检查`,
         );
@@ -94,7 +94,7 @@ export class PortService {
       },
     });
     const updateReq = new UpdatePortDto();
-    updateReq.id = req.nodeId;
+    updateReq.id = req.id;
     updateReq.properties = req.properties;
     await this.modify(updateReq);
     return 'success';

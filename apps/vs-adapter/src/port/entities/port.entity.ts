@@ -70,7 +70,7 @@ export class VsPort {
     port.projectId = prismaPort.projectId;
     port.nodeId = prismaPort.nodeId;
     port.type = prismaPort.type as VsPortTypeEnum;
-    port.properties = prismaPort.properties;
+    port.properties = JSON.parse(prismaPort.properties);
     // port.contextCompApiId = prismaPort.contextCompApiId;
     port.method = prismaPort.method;
     port.path = prismaPort.path;

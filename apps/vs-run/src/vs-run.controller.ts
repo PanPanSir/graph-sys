@@ -185,6 +185,12 @@ export class VsAdapterController {
 
     // 构建流上节点实例
     const queue = this.vsNodeUserLogService.getQueue();
+    // 构建运行时流程执行树 （Runtime Flow），将静态的流程定义转换为可执行的节点任务依赖树。
+    // ## 主要处理步骤
+    // ### 1. 数据准备和验证
+    // - 从 VsExecFlow 中提取流程定义、节点类映射、节点名称等信息
+    // - 调用 getNodeIdsMap 获取有效节点ID、起始节点和结束节点
+    // - 验证节点和连接不为空，否则抛出 VsDataConsistencyException
     const startFlowNode = FlowNodeUtil.makeRtFlow(
       requestBody,
       requestHeader,
