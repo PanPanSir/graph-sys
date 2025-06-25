@@ -139,11 +139,16 @@ export class LinkService {
     }
   }
   async delete(req: VsLinkDeleteReq) {
-    await this.prismaService.t_vs_link.delete({
-      where: {
-        id: req.id,
-      },
-    });
-    return true;
+    try {
+      await this.prismaService.t_vs_link.delete({
+        where: {
+          id: req.id,
+        },
+      });
+      return true;
+    } catch (error) {
+      // throw new BadRequestException('删除连线异常');
+      console.error('删除连线异常', error);
+    }
   }
 }

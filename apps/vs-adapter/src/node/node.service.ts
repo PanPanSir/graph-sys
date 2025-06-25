@@ -249,7 +249,7 @@ export class NodeService {
       // links: Link[];
       // ports: VsPort[];
       // nodes: VsNode[]
-      // 隶属于当前复合节点的所有link，包括第一图层和第二图层的link
+      // 隶属于当前复合节点的所有link，包括第二图层的link
       const curLinks = this.getDownLayerLinks(links, nodesMap, node.id);
       routeDefinition.links = curLinks;
       routeDefinition.properties = JSON.parse(node.properties);
@@ -328,24 +328,26 @@ export class NodeService {
       // 前端需要自己构建第二图层的起点虚拟节点和结束节点的link
       // Link 的开始节点和结束节点都在第二图层
       if (
-        linkStartNode.upLevelNodeId === upLayerCompositeNodeId ||
+        linkStartNode.upLevelNodeId === upLayerCompositeNodeId &&
         linkEndNode.upLevelNodeId === upLayerCompositeNodeId
       ) {
         downLayerLinks.push(link);
         continue;
       }
-      // Link 的开始节点在第一图层，结束节点在第二图层
+      // 没有虚拟节点的概念，虚拟节点由前端自行构建
+      // Link 的开始节点在第二图层，结束节点在是复合组件
       if (
-        linkStartNode.id === upLayerCompositeNodeId &&
-        linkEndNode.upLevelNodeId !== upLayerCompositeNodeId
+        linkStartNode.upLevelNodeId === upLayerCompositeNodeId &&
+        linkEndNode.id === upLayerCompositeNodeId
       ) {
         downLayerLinks.push(link);
         continue;
       }
-      // Link 的开始节点在第二图层，结束节点在第一图层
+      // 没有虚拟节点的概念，虚拟节点由前端自行构建
+      // Link 的开始节点在第一图层的复合组件，结束节点在第二图层
       if (
-        linkEndNode.id === upLayerCompositeNodeId &&
-        linkStartNode.upLevelNodeId !== upLayerCompositeNodeId
+        linkStartNode.id === upLayerCompositeNodeId &&
+        linkEndNode.upLevelNodeId === upLayerCompositeNodeId
       ) {
         downLayerLinks.push(link);
         continue;
