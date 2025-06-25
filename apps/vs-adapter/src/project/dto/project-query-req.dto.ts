@@ -1,3 +1,4 @@
+import { VsHttpMethodEnum } from '@prisma/client';
 import {
   IsEnum,
   IsNumber,
@@ -5,7 +6,6 @@ import {
   IsString,
   Length,
 } from 'class-validator';
-import { HttpMethodEnum } from '@app/enum//project.enum';
 
 export class ProjectQueryReqDTO {
   @IsOptional()
@@ -23,6 +23,6 @@ export class ProjectQueryReqDTO {
   contextPath?: string;
 
   @IsOptional()
-  @IsEnum(HttpMethodEnum)
-  method?: HttpMethodEnum;
+  @IsEnum(VsHttpMethodEnum)
+  method?: VsHttpMethodEnum;
 }

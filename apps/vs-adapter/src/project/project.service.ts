@@ -125,7 +125,7 @@ export class ProjectService {
     }
     if (method) {
       where.method = {
-        contains: method.trim(),
+        equals: method,
       };
     }
     const list = await this.prismaService.t_vs_project.findMany({

@@ -1,9 +1,6 @@
-import {
-  VsApiTypeEnum,
-  VsHttpMethodEnum,
-  VsPortTypeEnum,
-} from '@app/enum/port.enum';
+import { VsApiTypeEnum, VsHttpMethodEnum } from '@app/enum/port.enum';
 import { PathParam } from '../dto/VsPortPropHttp';
+import { VsPortTypeEnum } from '@prisma/client';
 
 export class VsPort {
   // @IsNotEmpty({ message: '端口ID不能为空' })
@@ -12,7 +9,7 @@ export class VsPort {
 
   // @IsNumber()
   // @IsNotEmpty({ message: '项目ID不能为空' })
-  projectId: string;
+  projectId: number;
 
   // @IsNotEmpty({ message: '节点ID不能为空' })
   // @MaxLength(64, { message: '节点ID最大长度为64' })

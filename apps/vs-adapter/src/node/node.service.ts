@@ -19,6 +19,8 @@ import {
 } from '../project/dto/project-layerLoad-req.dto';
 import { VsNodeProp } from './entities/node.prop.entity';
 import { UpdateNodeDto } from './dto/update-node.dto';
+import { VsLink } from '../link/entities/link.entity';
+import { VsNode } from './entities/node.entity';
 
 @Injectable()
 export class NodeService {
@@ -146,7 +148,7 @@ export class NodeService {
       }
       return acc;
     }, {});
-    const links = await this.prismaService.t_vs_link.findMany({
+    const links: VsLink[] = await this.prismaService.t_vs_link.findMany({
       where: {
         projectId: projectId,
       },
@@ -191,7 +193,8 @@ export class NodeService {
         childNodesMap,
       );
     } catch (e) {
-      throw new UnauthorizedException(e.getMessage());
+      console.error(e);
+      throw new UnauthorizedException(e);
     }
     return {
       endpointDefinitions: endpointDefinitions || [],
@@ -199,11 +202,11 @@ export class NodeService {
       routeDefinitions,
     };
   }
-  getUpLayerLinks(links, nodesMap) {
+  getUpLayerLinks(links: VsLink[], nodesMap: Record<string, VsNode>) {
     const upLayerLinks = [];
     for (const link of links) {
-      const linkStartNode = nodesMap[link.startNodeId];
-      const linkEndNode = nodesMap[link.endNodeId];
+      const linkStartNode = nodesMap[link.sourceId];
+      const linkEndNode = nodesMap[link.targetId];
       if (
         linkStartNode.upLevelNodeId === '-1' &&
         linkEndNode.upLevelNodeId === '-1'
@@ -313,11 +316,15 @@ export class NodeService {
     }
     return nodes;
   }
-  getDownLayerLinks(links, nodesMap, upLayerCompositeNodeId) {
+  getDownLayerLinks(
+    links: VsLink[],
+    nodesMap: Record<string, VsNode>,
+    upLayerCompositeNodeId: string,
+  ) {
     const downLayerLinks = [];
     for (const link of links) {
-      const linkStartNode = nodesMap[link.startNodeId];
-      const linkEndNode = nodesMap[link.endNodeId];
+      const linkStartNode = nodesMap[link.sourceId];
+      const linkEndNode = nodesMap[link.targetId];
       // 前端需要自己构建第二图层的起点虚拟节点和结束节点的link
       // Link 的开始节点和结束节点都在第二图层
       if (

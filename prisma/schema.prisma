@@ -34,7 +34,7 @@ model t_vs_project {
 
 model t_vs_port {
   id               String    @id @db.VarChar(64)
-  projectId        String       @map("project_id")
+  projectId        Int       @map("project_id")
   nodeId           String    @map("node_id") @db.VarChar(64)
   type             VsPortTypeEnum
   properties       Json
@@ -64,7 +64,7 @@ model t_vs_port {
 
 model t_vs_node {
   id             String    @id @db.VarChar(64)
-  projectId      String       @map("project_id")
+  projectId      Int       @map("project_id")
   taskType       String    @map("task_type") @db.VarChar(16)
   script         String    @db.LongText
   classBytes     Bytes     @map("class_bytes") @db.LongBlob
@@ -80,7 +80,7 @@ model t_vs_node {
 
 model t_vs_link {
   id           String    @id @db.VarChar(64)
-  projectId    String       @map("project_id")
+  projectId    Int       @map("project_id")
   sourceId  String    @map("start_node_id") @db.VarChar(64)
   targetId    String    @map("end_node_id") @db.VarChar(64)
   sourcePort  String    @map("start_port_id") @db.VarChar(64)

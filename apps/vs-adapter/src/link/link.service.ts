@@ -1,10 +1,10 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { UpdateLinkDto } from './dto/update-link.dto';
 import { VsLinkAddReq } from './dto/vs-link-add-req.dto';
 import { PrismaService } from '@app/prisma';
 import { VsNode } from '../node/entities/node.entity';
 import { VsPort } from '../port/entities/port.entity';
 import { VsPortTypeEnum } from '@prisma/client';
+import { VsLinkDeleteReq } from './dto/vs-link-delete-dto';
 
 @Injectable()
 export class LinkService {
@@ -53,12 +53,12 @@ export class LinkService {
       throw new BadRequestException('连线异常：边的两个端口必须都存在');
     }
     let startNode = null;
-    let nodeNode = null;
+    let targetNode = null;
     for (const node of nodes) {
-      if ((req.sourceId = node.id)) startNode = node;
-      if (req.targetId === node.id) nodeNode = node;
+      if (req.sourceId === node.id) startNode = node;
+      if (req.targetId === node.id) targetNode = node;
     }
-    if (!startNode || !nodeNode) {
+    if (!startNode || !targetNode) {
       throw new BadRequestException('连线异常：边的两个节点必须都存在');
     }
     const sourcePort = await this.prismaService.t_vs_port.findUnique({
@@ -71,16 +71,16 @@ export class LinkService {
         id: req.targetPort,
       },
     });
-    this.validPort(startNode, nodeNode, sourcePort, targetPort);
-    await this.prismaService.t_vs_link.update({
-      where: {
-        id: req.id,
-      },
+    this.validPort(startNode, targetNode, sourcePort, targetPort);
+    return await this.prismaService.t_vs_link.create({
       data: {
+        id: req.id,
         sourceId: req.sourceId,
         sourcePort: req.sourcePort,
         targetId: req.targetId,
         targetPort: req.targetPort,
+        projectId: req.projectId,
+        properties: req.properties,
       },
     });
   }
@@ -138,19 +138,12 @@ export class LinkService {
       }
     }
   }
-  findAll() {
-    return `This action returns all link`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} link`;
-  }
-
-  update(id: number, updateLinkDto: UpdateLinkDto) {
-    return `This action updates a #${id} link`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} link`;
+  async delete(req: VsLinkDeleteReq) {
+    await this.prismaService.t_vs_link.delete({
+      where: {
+        id: req.id,
+      },
+    });
+    return true;
   }
 }

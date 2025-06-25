@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsNumber, IsString, Length } from 'class-validator';
 import { VsLink } from '../entities/link.entity';
+import { Transform } from 'class-transformer';
 
 /**
  * 边添加请求DTO
@@ -13,6 +14,7 @@ export class VsLinkAddReq {
 
   // @ApiProperty({ description: '项目ID' })
   @IsNotEmpty({ message: '项目ID不能为空' })
+  @Transform(({ value }) => Number(value))
   @IsNumber({}, { message: '项目ID必须是数字' })
   projectId: number;
 
@@ -39,6 +41,8 @@ export class VsLinkAddReq {
   @IsString()
   @Length(1, 64, { message: '端口结束ID在1到64个字符之间' })
   targetPort: string;
+
+  properties: any;
 
   /**
    * 转换为VsLink实体

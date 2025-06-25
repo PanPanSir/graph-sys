@@ -1,16 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
 import { LinkService } from './link.service';
-import { UpdateLinkDto } from './dto/update-link.dto';
 import { VsLinkAddReq } from './dto/vs-link-add-req.dto';
+import { VsLinkDeleteReq } from './dto/vs-link-delete-dto';
 
 @Controller('/ip/vsLink')
 export class LinkController {
@@ -27,23 +18,8 @@ export class LinkController {
     return this.linkService.add(req);
   }
 
-  @Get()
-  findAll() {
-    return this.linkService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.linkService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLinkDto: UpdateLinkDto) {
-    return this.linkService.update(+id, updateLinkDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.linkService.remove(+id);
+  @Post('/delete')
+  delete(@Body() req: VsLinkDeleteReq) {
+    return this.linkService.delete(req);
   }
 }

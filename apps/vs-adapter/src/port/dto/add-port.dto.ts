@@ -10,7 +10,7 @@ export class AddPortDto {
   })
   @IsString()
   id: string;
-  projectId: string;
+  projectId: number;
 
   @IsString()
   nodeId: string;
@@ -109,7 +109,8 @@ export class AddPortDto {
       vsPort.url = url;
       vsPort.method = method;
       // 兼容数据库，数据库层面 ： `schema.prisma` 中定义为pathParams为 Json? 类型
-      vsPort.pathParams = pathParams as any;
+      // 将PathParam[]转换为符合Prisma Json类型的格式
+      vsPort.pathParams = pathParams;
       vsPort.requestTimeout = requestTimeout;
     }
 
