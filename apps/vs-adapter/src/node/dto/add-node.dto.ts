@@ -9,11 +9,8 @@ import {
   Length,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import {
-  VsNodeTaskTypeEnum,
-  VsNodeViewTypeEnum,
-} from '@app/enum//node.enum';
-import { VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsNodeTaskTypeEnum, VsNodeViewTypeEnum } from '@app/enum//node.enum';
+import { VsPortTypeEnum } from '@prisma/client';
 import { NodePropertiesDto } from './node-properties.dto';
 import { VsPortProp } from '../../port/entities/port.prop.entity';
 

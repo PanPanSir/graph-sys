@@ -2,7 +2,7 @@ import {
   VsApiTypeEnum,
   VsHttpMethodEnum,
   VsPortTypeEnum,
-} from '@app/enum//port.enum';
+} from '@app/enum/port.enum';
 import { PathParam } from '../dto/VsPortPropHttp';
 
 export class VsPort {

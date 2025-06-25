@@ -8,13 +8,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum VsPortTypeEnum {
+  INPUT_PORT
+  OUTPUT_PORT
+}
+enum VsHttpMethodEnum {
+  GET
+  POST
+}
+
 model t_vs_project {
   id             Int       @id @default(autoincrement())
   name           String    @unique @db.VarChar(64)
   description    String?   @db.VarChar(255)
   contextPath    String?   @unique @db.VarChar(600) @map("context_path")
   compileVersion Int       @default(0) @map("compile_version")
-  method         String?   @db.VarChar(8)
+  method         VsHttpMethodEnum?
   properties     Json?
   state          String?   @db.VarChar(12)
   createTime     DateTime  @default(now()) @map("create_time")
@@ -25,9 +34,9 @@ model t_vs_project {
 
 model t_vs_port {
   id               String    @id @db.VarChar(64)
-  projectId        Int       @map("project_id")
+  projectId        String       @map("project_id")
   nodeId           String    @map("node_id") @db.VarChar(64)
-  type             String    @db.VarChar(16)
+  type             VsPortTypeEnum
   properties       Json
   // contextCompApiId Int?      @map("context_comp_api_id")
   method           String?   @db.VarChar(8)
@@ -55,7 +64,7 @@ model t_vs_port {
 
 model t_vs_node {
   id             String    @id @db.VarChar(64)
-  projectId      Int       @map("project_id")
+  projectId      String       @map("project_id")
   taskType       String    @map("task_type") @db.VarChar(16)
   script         String    @db.LongText
   classBytes     Bytes     @map("class_bytes") @db.LongBlob
@@ -71,7 +80,7 @@ model t_vs_node {
 
 model t_vs_link {
   id           String    @id @db.VarChar(64)
-  projectId    Int       @map("project_id")
+  projectId    String       @map("project_id")
   sourceId  String    @map("start_node_id") @db.VarChar(64)
   targetId    String    @map("end_node_id") @db.VarChar(64)
   sourcePort  String    @map("start_port_id") @db.VarChar(64)

@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsNotEmpty } from 'class-validator';
-import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
 import { VsPortProp } from './VsPortProp';
 import { VsPort } from '../entities/port.entity';
 import { PathParam } from './VsPortPropHttp';

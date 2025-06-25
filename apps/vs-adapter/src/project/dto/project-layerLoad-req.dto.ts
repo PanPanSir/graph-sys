@@ -1,4 +1,4 @@
-import { VsPortTypeEnum } from '@app/enum/port.enum';
+import { VsPortTypeEnum } from '@prisma/client';
 import { VsApiTypeEnum } from '@app/enum//data.mapping.enum';
 import {
   VsNodeTaskTypeEnum,

@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { AddPortDto } from './dto/add-port.dto';
-import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
 import { PrismaService } from '@app/prisma';
 import { VsNodeTaskTypeEnum } from '@app/enum//node.enum';
 import { UpdatePortDto } from './dto/update-port.dto';
@@ -159,6 +159,7 @@ export class PortService {
 
     // only OUTPUT type can have script(end node except!)
     if (vsPortType === VsPortTypeEnum.OUTPUT_PORT) {
+      // 这个代码有历史原因，不必纠结
       if (propScript !== undefined && propScript !== '') {
         script = propScript;
       } else {

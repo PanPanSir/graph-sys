@@ -11,7 +11,7 @@ import {
   VsNodeViewTypeEnum,
   VsVirtualNodeTypeEnum,
 } from '@app/enum//node.enum';
-import { VsPortTypeEnum } from '@app/enum//port.enum';
+import { VsPortTypeEnum } from '@prisma/client';
 import { VsPort } from '../port/entities/port.entity';
 import {
   RouteDefinitionRespDto,

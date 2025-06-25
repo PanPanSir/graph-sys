@@ -1,5 +1,4 @@
 import { IsNotEmpty, IsNumber, MaxLength } from 'class-validator';
-import { VsLinkProp } from './link.prop.entity';
 
 export class VsLink {
   @IsNotEmpty({ message: '链接ID不能为空' })
@@ -26,9 +25,6 @@ export class VsLink {
   @MaxLength(64, { message: '结束端口ID最大长度为64' })
   targetPort: string;
 
-  @IsNotEmpty({ message: '属性不能为空' })
-  properties?: VsLinkProp;
-
   createTime?: Date;
 
   modifyTime?: Date;
@@ -41,7 +37,6 @@ export class VsLink {
     link.targetId = prismaLink.targetId;
     link.sourcePort = prismaLink.sourcePort;
     link.targetPort = prismaLink.targetPort;
-    link.properties = prismaLink.properties;
     link.createTime = prismaLink.createTime;
     link.modifyTime = prismaLink.modifyTime;
     return link;
