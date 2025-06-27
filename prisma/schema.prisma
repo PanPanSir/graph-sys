@@ -92,5 +92,14 @@ model t_vs_link {
   @@index([projectId])
   @@index([targetId])
   @@unique([sourcePort, targetPort], name:"start_end_branch_uinq")
-  @@unique([sourceId], name:"start_branch_id")
+  // name 参数是为约束提供一个 逻辑标识名 ，方便在代码中引用和处理约束冲突。
+  // 数据库里不用它，数据库实际使用的是自动生成的物理约束名。
+  // // - 文档化 ：让开发者理解约束的业务含义
+  // - 代码可读性 ：在 schema 中提供有意义的标识
+  // - Prisma 内部引用 ：某些 Prisma 工具可能会使用这个名称
+  // // 在错误处理中使用数据库的物理约束名称
+  // if (error.meta?.target === 't_vs_link_start_node_id_key') {
+  //   throw new Error('该源节点已经存在连接，请先删除现有连接');
+  // }
+  @@unique([sourcePort], name:"start_branch_id")
 }

@@ -521,4 +521,11 @@ export class PortService {
       properties: vsPort.properties,
     };
   }
+  async delete(id: string) {
+    return await this.prismaService.t_vs_port.delete({
+      where: {
+        id,
+      },
+    });
+  }
 }

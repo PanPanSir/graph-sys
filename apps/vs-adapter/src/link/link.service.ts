@@ -72,17 +72,25 @@ export class LinkService {
       },
     });
     this.validPort(startNode, targetNode, sourcePort, targetPort);
-    return await this.prismaService.t_vs_link.create({
-      data: {
-        id: req.id,
-        sourceId: req.sourceId,
-        sourcePort: req.sourcePort,
-        targetId: req.targetId,
-        targetPort: req.targetPort,
-        projectId: req.projectId,
-        properties: req.properties,
-      },
-    });
+    try {
+      await this.prismaService.t_vs_link.create({
+        data: {
+          id: req.id,
+          sourceId: req.sourceId,
+          sourcePort: req.sourcePort,
+          targetId: req.targetId,
+          targetPort: req.targetPort,
+          projectId: req.projectId,
+          properties: req.properties,
+        },
+      });
+    } catch (error) {
+      if (error.meta?.target === 't_vs_link_start_node_id_key') {
+        throw new BadRequestException('该源节点已经存在连接，请先删除现有连接');
+      }
+      throw new BadRequestException(error.message);
+    }
+    return;
   }
   validPort(
     startNode: VsNode,
@@ -140,6 +148,14 @@ export class LinkService {
   }
   async delete(req: VsLinkDeleteReq) {
     try {
+      const foundLink = await this.prismaService.t_vs_link.findUnique({
+        where: {
+          id: req.id,
+        },
+      });
+      if (!foundLink) {
+        throw new BadRequestException('待删除的连线不存在');
+      }
       await this.prismaService.t_vs_link.delete({
         where: {
           id: req.id,

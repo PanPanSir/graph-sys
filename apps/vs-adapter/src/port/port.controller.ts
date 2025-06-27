@@ -2,7 +2,8 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { PortService } from './port.service';
 import { AddPortDto } from './dto/add-port.dto';
 import { UpdatePortDto } from './dto/update-port.dto';
-
+import { DeletePortDto } from './dto/delete-port.dto';
+import { ResultInfo } from '@app/dto/result.dto';
 
 @Controller('/ip/vsPort')
 export class PortController {
@@ -11,18 +12,24 @@ export class PortController {
   @Post('add')
   async add(@Body() req: AddPortDto) {
     await this.portService.add(req);
-    return 'success';
+    return new ResultInfo('success');
   }
 
   @Post('detailQuery')
   async detailQuery(@Body() req: AddPortDto) {
     await this.portService.detailQuery(req);
-    return 'success';
+    return new ResultInfo('success');
   }
 
   @Post('update')
   async update(@Body() req: UpdatePortDto) {
     await this.portService.modify(req);
-    return 'success';
+    return new ResultInfo('success');
+  }
+
+  @Post('delete')
+  async delete(@Body() req: DeletePortDto) {
+    await this.portService.delete(req.id);
+    return new ResultInfo('success');
   }
 }

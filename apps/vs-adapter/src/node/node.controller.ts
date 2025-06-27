@@ -2,6 +2,7 @@ import { Controller, Post, Body } from '@nestjs/common';
 import { NodeService } from './node.service';
 import { AddNodeDto } from './dto/add-node.dto';
 import { UpdateNodeDto } from './dto/update-node.dto';
+import { ResultInfo } from '@app/dto/result.dto';
 
 @Controller('/ip/vsNode')
 export class NodeController {
@@ -15,7 +16,7 @@ export class NodeController {
   @Post('add')
   async add(@Body() dto: AddNodeDto) {
     await this.nodeService.add(dto);
-    return 'success';
+    return new ResultInfo('success');
   }
 
   // @Get('id')
@@ -25,6 +26,7 @@ export class NodeController {
 
   @Post('update')
   async update(@Body() node: UpdateNodeDto) {
-    return await this.nodeService.update(node);
+    const data = await this.nodeService.update(node);
+    return new ResultInfo(data);
   }
 }
