@@ -1,7 +1,7 @@
 import { IsNumber, IsNotEmpty, MaxLength, IsOptional } from 'class-validator';
 import { VsProjectStateEnum } from '@app/enum//project.enum';
 
-export class Project {
+export class VsProject {
   @IsNumber()
   @IsNotEmpty({ message: '项目ID不能为空' })
   id: number;

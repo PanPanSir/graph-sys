@@ -2,9 +2,14 @@
 import { VsNodeTaskTypeEnum } from '@app/enum/node.enum';
 import { VsHttpMethodEnum, VsPortTypeEnum } from '@app/enum/port.enum';
 import { VsProjectStateEnum } from '@app/enum/project.enum';
+import { FlowNodeUtil } from '@app/utils/vs/flow-node.util';
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { VsLink } from 'apps/vs-adapter/src/link/entities/link.entity';
+import { VsNode } from 'apps/vs-adapter/src/node/entities/node.entity';
 import { VsNodeProp } from 'apps/vs-adapter/src/node/entities/node.prop.entity';
 import { VsPortProp } from 'apps/vs-adapter/src/port/dto/VsPortProp';
+import { VsPort } from 'apps/vs-adapter/src/port/entities/port.entity';
+import { VsProject } from 'apps/vs-adapter/src/project/entities/project.entity';
 // 异常类定义
 export class VsAdapterException extends Error {
   constructor(message: string) {
@@ -18,42 +23,6 @@ export class VsDataConsistencyException extends Error {
     super(message);
     this.name = 'VsDataConsistencyException';
   }
-}
-
-// 实体类接口定义
-export interface VsProject {
-  id: number;
-  name: string;
-  contextPath: string;
-  method: VsHttpMethodEnum;
-  state: VsProjectStateEnum;
-  compileVersion: number;
-}
-
-export interface VsNode {
-  id: string;
-  projectId: number;
-  properties: string;
-  viewType: string;
-  taskType: VsNodeTaskTypeEnum;
-  classBytes: Buffer;
-}
-
-export interface VsLink {
-  id: string;
-  projectId: number;
-  sourceId: string;
-  targetId: string;
-  sourcePort: string;
-  targetPort: string;
-}
-
-export interface VsPort {
-  id: string;
-  projectId: number;
-  nodeId: string;
-  type: VsPortTypeEnum;
-  properties: string;
 }
 
 export interface VsPortPropHttp {
@@ -145,32 +114,6 @@ export interface CircuitBreakUtil {
   ): CircuitBreakerConfig;
 }
 
-export interface FlowNodeUtil {
-  getActualNodes(nodes: VsNode[]): VsNode[];
-  getActualLinks(
-    links: VsLink[],
-    nodeId2node: Map<string, VsNode>,
-    portId2Port: Map<string, VsPort>,
-    sourcePort2Link: Map<string, VsLink>,
-    nodeId2NodeName: Map<string, string>,
-  ): VsLink[];
-  makeStFlow(actualLinks: VsLink[], atomicNodes: VsNode[]): Flow;
-  getNodeIdsMap(
-    flow: Flow,
-    nodeId2node: Map<string, VsNode>,
-  ): Map<string, string[]>;
-  getClass(nodeId: string, classBytes: Buffer): any;
-  ALL_VALID_NODE_ID_KEY: string;
-}
-
-export interface VsDataConvertUtil {
-  checkAndGetVsDataConvRT(vsDataConvProp: VsDataConvProp): VsDataConvRT;
-}
-
-export interface CircuitBreakerRegistry {
-  circuitBreaker(name: string): CircuitBreaker;
-}
-
 // 常量定义
 const CACHE_TTL_DAYS = 24 * 60 * 60 * 1000; // 1天的毫秒数
 const MAX_CACHE_SIZE = 512;
@@ -195,11 +138,10 @@ export class VsProjectService {
     @Inject('JacksonUtil') private readonly jacksonUtil: JacksonUtil,
     @Inject('CircuitBreakUtil')
     private readonly circuitBreakUtil: CircuitBreakUtil,
-    @Inject('FlowNodeUtil') private readonly flowNodeUtil: FlowNodeUtil,
-    @Inject('VsDataConvertUtil')
-    private readonly vsDataConvertUtil: VsDataConvertUtil,
+    // @Inject('VsDataConvertUtil')
+    // private readonly vsDataConvertUtil: VsDataConvertUtil,
     @Inject('CircuitBreakerRegistry')
-    private readonly circuitBreakerRegistry: CircuitBreakerRegistry,
+    private readonly circuitBreakerRegistry,
   ) {}
 
   // 根据上下文路径获取项目信息
@@ -332,12 +274,12 @@ export class VsProjectService {
     });
 
     // only contains atomic node
-    const atomicNodes = this.flowNodeUtil.getActualNodes(nodes);
+    const atomicNodes = FlowNodeUtil.getActualNodes(nodes);
 
     // only contains actual execute link
     let actualLinks: VsLink[];
     try {
-      actualLinks = this.flowNodeUtil.getActualLinks(
+      actualLinks = FlowNodeUtil.getActualLinks(
         links,
         nodeId2node,
         portId2Port,
@@ -358,10 +300,10 @@ export class VsProjectService {
     });
 
     // 生成静态流
-    const flow = this.flowNodeUtil.makeStFlow(actualLinks, atomicNodes);
+    const flow = FlowNodeUtil.makeStFlow(actualLinks, atomicNodes);
     let nodeIdsMap: Map<string, string[]>;
     try {
-      nodeIdsMap = this.flowNodeUtil.getNodeIdsMap(flow, nodeId2node);
+      nodeIdsMap = FlowNodeUtil.getNodeIdsMap(flow, nodeId2node);
     } catch (e) {
       if (e instanceof VsDataConsistencyException) {
         throw new VsAdapterException(e.message);
@@ -369,7 +311,7 @@ export class VsProjectService {
       throw e;
     }
     const validNodeIds =
-      nodeIdsMap.get(this.flowNodeUtil.ALL_VALID_NODE_ID_KEY) || [];
+      nodeIdsMap.get(FlowNodeUtil.ALL_VALID_NODE_ID_KEY) || [];
 
     const nodeId2Class = new Map<string, any>();
     for (const validNodeId of validNodeIds) {
@@ -395,7 +337,7 @@ export class VsProjectService {
 
       let flowNodeTaskClass: any;
       try {
-        flowNodeTaskClass = this.flowNodeUtil.getClass(
+        flowNodeTaskClass = FlowNodeUtil.getClass(
           curValidNode.id,
           curValidNode.classBytes,
         );
@@ -526,43 +468,41 @@ export class VsProjectService {
     const nodeId2DataConvRT = new Map<string, VsDataConvRT>();
 
     for (const [nodeId, node] of nodeId2node.entries()) {
-      if (node.taskType === VsNodeTaskTypeEnum.DATA_MAPPING) {
-        // generate data convert mapping config
-        // 获取对应的port上配置的属性
-        const outPorts = nodeId2OutputPorts.get(nodeId);
-        if (!outPorts || outPorts.length === 0) {
-          // skip if node is not full config
-          continue;
-        }
-        if (outPorts.length !== 1) {
-          this.logger.error(
-            `convert node ${nodeId}, outputPorts = ${JSON.stringify(ports)}, is not correct, data may be corrupted!`,
-          );
-          throw new VsAdapterException(
-            `工程[${projectName}]节点[${nodeId2NodeName.get(nodeId) || ''}]端口数量非法,请检查数据`,
-          );
-        }
-
-        // skip empty prop
-        const properties = outPorts[0].properties;
-        if (!properties || properties.trim().length === 0) {
-          continue;
-        }
-
-        const vsPortProp = this.jacksonUtil.parseObject(properties, VsPortProp);
-        const dataMappingProp = vsPortProp.dataMapping;
-        if (!dataMappingProp) {
-          continue;
-        }
-        const vsDataConvProp = dataMappingProp.vsDataConvProp;
-        // skip null config
-        if (!vsDataConvProp) {
-          continue;
-        }
-        const vsDataConvRT =
-          this.vsDataConvertUtil.checkAndGetVsDataConvRT(vsDataConvProp);
-        nodeId2DataConvRT.set(nodeId, vsDataConvRT);
-      }
+      // if (node.taskType === VsNodeTaskTypeEnum.DATA_MAPPING) {
+      //   // generate data convert mapping config
+      //   // 获取对应的port上配置的属性
+      //   const outPorts = nodeId2OutputPorts.get(nodeId);
+      //   if (!outPorts || outPorts.length === 0) {
+      //     // skip if node is not full config
+      //     continue;
+      //   }
+      //   if (outPorts.length !== 1) {
+      //     this.logger.error(
+      //       `convert node ${nodeId}, outputPorts = ${JSON.stringify(ports)}, is not correct, data may be corrupted!`,
+      //     );
+      //     throw new VsAdapterException(
+      //       `工程[${projectName}]节点[${nodeId2NodeName.get(nodeId) || ''}]端口数量非法,请检查数据`,
+      //     );
+      //   }
+      //   // skip empty prop
+      //   const properties = outPorts[0].properties;
+      //   if (!properties || properties.trim().length === 0) {
+      //     continue;
+      //   }
+      //   const vsPortProp = this.jacksonUtil.parseObject(properties, VsPortProp);
+      //   const dataMappingProp = vsPortProp.dataMapping;
+      //   if (!dataMappingProp) {
+      //     continue;
+      //   }
+      //   const vsDataConvProp = dataMappingProp.vsDataConvProp;
+      //   // skip null config
+      //   if (!vsDataConvProp) {
+      //     continue;
+      //   }
+      //   const vsDataConvRT =
+      //     this.vsDataConvertUtil.checkAndGetVsDataConvRT(vsDataConvProp);
+      //   nodeId2DataConvRT.set(nodeId, vsDataConvRT);
+      // }
     }
 
     return nodeId2DataConvRT;

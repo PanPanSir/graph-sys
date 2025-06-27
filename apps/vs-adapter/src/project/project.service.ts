@@ -430,6 +430,7 @@ export class ProjectService {
     this.validateAtomicEndNodes(endNodeId2node);
 
     // only contains atomic node
+    // 即非复合节点
     const atomicNodes = FlowNodeUtil.getActualNodes(nodes);
 
     // 获取字节码
@@ -441,6 +442,7 @@ export class ProjectService {
     );
 
     // only contains actual execute link
+    // 剔除了起始和终止端口在复合节点的link，但未剔除游离节点的link
     const actualLinks = FlowNodeUtil.getActualLinks(
       links,
       nodeId2node,

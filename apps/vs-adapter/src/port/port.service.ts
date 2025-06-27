@@ -117,6 +117,7 @@ export class PortService {
 
   async modify(req: UpdatePortDto) {
     const reqProp = req.properties;
+    const reqVsPort = req.toVsPort();
     // 当为http/context组件时 更新属性
     this.setPropWhenContextHttpComponent(reqProp);
 
@@ -288,6 +289,14 @@ export class PortService {
         `不支持的端口类型,端口ID=${portId},端口类型=${vsPortType}`,
       );
     }
+    reqProp.script = script;
+    reqVsPort.properties = JSON.stringify(reqProp);
+    await this.prismaService.t_vs_port.update({
+      where: {
+        id: portId,
+      },
+      data: reqVsPort,
+    });
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setPropWhenContextHttpComponent(vsportProp: VsPortProp) {

@@ -1,5 +1,5 @@
 import { VsProjectStateEnum } from '@app/enum//project.enum';
-import { Project } from '../entities/project.entity';
+import { VsProject } from '../entities/project.entity';
 import { ProjectPropDto } from './project-prop.dto';
 
 export class VsProjectPageQueryRespDto {
@@ -12,7 +12,7 @@ export class VsProjectPageQueryRespDto {
   state: VsProjectStateEnum;
 
   properties: ProjectPropDto;
-  constructor(vsProject: Project) {
+  constructor(vsProject: VsProject) {
     this.id = vsProject.id;
     this.name = vsProject.name;
     this.description = vsProject.description;

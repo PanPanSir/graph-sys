@@ -996,7 +996,7 @@ export class FlowNodeUtil {
   }
 
   /**
-   * 获取实际连接
+   * 获取实际连接，不会过滤掉游离链接，只是过滤掉复合组件端口上的节点，游离link的检测和处理是在流程图构建和验证的后续步骤中进行的。
    * @param links 所有连接
    * @param nodeId2node 所有节点映射，键：节点ID，值：节点
    * @param portId2Port 所有端口映射，键：端口ID，值：端口
@@ -1081,7 +1081,7 @@ export class FlowNodeUtil {
 
   /**
    * 创建节点任务脚本
-   * @param links 实际执行流程连接
+   * @param links 实际执行流程连接，不包含复合节点，但包含游离节点
    * @param ports 实际执行流程输出端口
    * @param nodes 所有原子节点
    * @param nodeId2NodeName 节点ID到节点名称的映射
