@@ -34,10 +34,8 @@ export class UpdatePortDto {
     if (this.properties?.http != null) {
       // const apiId = this.properties.http.httpCompApiId;
       // vsPort.httpCompApiId = apiId;
-      const { url, method, pathParams, requestTimeout } = this.properties.http;
-      vsPort.url = url;
+      const { method, requestTimeout } = this.properties.http;
       vsPort.method = method;
-      vsPort.pathParams = pathParams;
       vsPort.requestTimeout = requestTimeout;
     }
 
@@ -48,7 +46,7 @@ export class UpdatePortDto {
       vsPort.targetApiId = this.properties.dataMapping.targetApiId;
     }
 
-    vsPort.properties = JSON.stringify(this.properties);
+    vsPort.properties = this.properties as any;
 
     return vsPort;
   }

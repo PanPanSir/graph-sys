@@ -100,10 +100,6 @@ export interface VsProjectRepository {
 }
 
 // 工具类接口定义
-export interface JacksonUtil {
-  parseObject<T>(json: string, clazz: new () => T): T;
-}
-
 export interface CircuitBreakUtil {
   getCircuitBreakerConfig(
     slidingWindowSize: number,
@@ -135,7 +131,6 @@ export class VsProjectService {
     @Inject('VsPortService') private readonly vsPortService: VsPortService,
     @Inject('VsProjectRepository')
     private readonly vsProjectRepository: VsProjectRepository,
-    @Inject('JacksonUtil') private readonly jacksonUtil: JacksonUtil,
     @Inject('CircuitBreakUtil')
     private readonly circuitBreakUtil: CircuitBreakUtil,
     // @Inject('VsDataConvertUtil')
@@ -247,10 +242,7 @@ export class VsProjectService {
     // key: node id, value: node name
     const nodeId2NodeName = new Map<string, string>();
     nodes.forEach((node) => {
-      const nodeProp = this.jacksonUtil.parseObject(
-        node.properties,
-        VsNodeProp,
-      );
+      const nodeProp = node.properties;
       nodeId2NodeName.set(node.id, nodeProp.name);
     });
 

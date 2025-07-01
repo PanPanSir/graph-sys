@@ -63,7 +63,13 @@ export class NodeService {
         projectId: addNodeDto.projectId,
         taskType: addNodeDto.taskType,
         script: '',
-        properties: JSON.stringify(addNodeDto.properties),
+        properties: {
+          properties: {
+            name: addNodeDto.properties.name,
+            x: addNodeDto.properties.x,
+            y: addNodeDto.properties.y,
+          },
+        },
         viewType: addNodeDto.viewType,
         upLevelNodeId: addNodeDto.upLevelNodeId, // 上一级节点id，如果是第一图层，其父节点id为-1好像
         classBytes: Buffer.from([]),
@@ -224,12 +230,12 @@ export class NodeService {
         taskType: node.taskType,
         viewType: node.viewType,
         upLevelNodeId: node.upLevelNodeId,
-        properties: JSON.parse(node.properties),
+        properties: node.properties,
         ports: [],
       };
       // 前端添加端口的时候，是有顺序的，因此需要转换并排序端口
       const curPorts = portsMap[node.id]?.ports
-        .map((port) => VsPort.fromPrisma(port))
+        .map((port) => VsPort.prismaToVsPort(port))
         .sort((a, b) => a.properties.order - b.properties.order);
       endpointDefinition.ports = curPorts || [];
       endpointDefinitions.push(endpointDefinition);
@@ -252,7 +258,7 @@ export class NodeService {
       // 隶属于当前复合节点的所有link，包括第二图层的link
       const curLinks = this.getDownLayerLinks(links, nodesMap, node.id);
       routeDefinition.links = curLinks;
-      routeDefinition.properties = JSON.parse(node.properties);
+      routeDefinition.properties = node.properties;
       // 获取当前节点在一层图中的端口
       const curPorts = portsMap[node.id]?.ports.sort(
         (a, b) => a.properties.order - b.properties.order,

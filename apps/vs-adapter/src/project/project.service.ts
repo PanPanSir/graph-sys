@@ -396,7 +396,7 @@ export class ProjectService {
     // key: node id, value: node name
     const nodeId2NodeName = new Map<string, string>();
     for (const node of nodes) {
-      const nodeProp = JSON.parse(node.properties);
+      const nodeProp = node.properties;
       nodeId2NodeName.set(node.id, nodeProp.name);
     }
 

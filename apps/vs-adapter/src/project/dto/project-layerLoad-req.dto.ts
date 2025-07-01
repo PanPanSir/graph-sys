@@ -7,7 +7,7 @@ import {
 } from '@app/enum//node.enum';
 import { VsLinkProp } from '../../link/entities/link.prop.entity';
 import { VsNodeProp } from '../../node/entities/node.prop.entity';
-import { VsPortProp } from '../../port/entities/port.prop.entity';
+import { VsPortProp } from '../../port/dto/VsPortProp';
 
 export class RouteDefinitionRespDto {
   // @ApiProperty({ description: '节点ID' })

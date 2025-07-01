@@ -12,7 +12,7 @@ import { Transform, Type } from 'class-transformer';
 import { VsNodeTaskTypeEnum, VsNodeViewTypeEnum } from '@app/enum//node.enum';
 import { VsPortTypeEnum } from '@prisma/client';
 import { NodePropertiesDto } from './node-properties.dto';
-import { VsPortProp } from '../../port/entities/port.prop.entity';
+import { VsPortProp } from '../../port/dto/VsPortProp';
 
 // 先定义Port类，而不是作为静态内部类
 export class PortDto {

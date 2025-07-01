@@ -36,8 +36,8 @@ export class VsProject {
 
   modifyTime: Date;
 
-  static fromPrisma(prismaProject: any): Project {
-    const project = new Project();
+  static fromPrisma(prismaProject: any): VsProject {
+    const project = new VsProject();
     project.id = prismaProject.id;
     project.name = prismaProject.name;
     project.description = prismaProject.description;

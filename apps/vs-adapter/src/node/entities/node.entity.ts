@@ -22,7 +22,7 @@ export class VsNode {
   classBytes: Buffer;
 
   @IsNotEmpty({ message: '属性不能为空' })
-  properties: string;
+  properties: VsNodeProp;
 
   @IsNotEmpty({ message: '视图类型不能为空' })
   @MaxLength(16, { message: '视图类型最大长度为16' })

@@ -105,12 +105,10 @@ export class AddPortDto {
     if (this.properties?.http != null) {
       // const apiId = this.properties.http.httpCompApiId;
       // vsPort.httpCompApiId = apiId;
-      const { url, method, pathParams, requestTimeout } = this.properties.http;
-      vsPort.url = url;
+      const { method, requestTimeout } = this.properties.http;
       vsPort.method = method;
       // 兼容数据库，数据库层面 ： `schema.prisma` 中定义为pathParams为 Json? 类型
       // 将PathParam[]转换为符合Prisma Json类型的格式
-      vsPort.pathParams = pathParams;
       vsPort.requestTimeout = requestTimeout;
     }
 
@@ -122,7 +120,7 @@ export class AddPortDto {
     }
 
     // 使用 JSON.stringify 将 properties 对象转换为 JSON 字符串
-    vsPort.properties = JSON.stringify(this.properties);
+    vsPort.properties = this.properties as any;
 
     return vsPort;
   }

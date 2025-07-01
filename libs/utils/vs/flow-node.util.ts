@@ -30,16 +30,6 @@ export interface CompiledScript {
   sourceMap?: string; // 可选的源码映射
 }
 /**
- * 端口属性接口
- * 对应Java中的VsPortProp
- */
-export interface PortProperties {
-  script?: string;
-  additionDefine?: string;
-  [key: string]: any;
-}
-
-/**
  * 执行上下文接口
  * 对应Java中的VsExecContext
  */
@@ -338,75 +328,74 @@ export class FlowNodeUtil {
    * HTTP POST请求执行模板
    * 对应Java中的NODE_HTTP_TASK_POST_EXEC_TEMPLATE
    */
-  private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE = `
-         try {
-          // 执行异步POST请求
-          const response: AxiosResponse = await AsyncHttpConnPoolUtil.doPost(
-            urlWithParams,
-            5000,
-            headerMap,
-          );
-
-          const responseCode = response.status;
-          const responseData = response.data;
-
-          // 检查响应状态
-          if (responseCode !== 200 || responseData == null) {
-            throw new Error(\`状态码=\${responseCode},响应体=\${responseData}\`);
-          }
-
-          // 设置响应体
-          this.setOutputResponseBody(
-            typeof responseData === 'string'
-              ? responseData
-              : JSON.stringify(responseData),
-          );
-        } catch (error) {
-          this.logger.error(
-            \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}\`,
-            error,
-          );
-          throw new ServiceUnavailableException(
-            \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=\${error.message}\`,
-          );
-        }
-      };
-
-      // 执行请求（带熔断器支持）
-      const circuitBreaker = this.circuitBreaker;
-      if (circuitBreaker) {
-        try {
-          // 使用熔断器执行请求
-          //           - HTTP请求只有在熔断器允许的情况下才会执行
-          // - 资源节省 : 熔断状态下不会浪费网络资源和时间
-          // - 快速失败 : 熔断状态下立即返回错误，不需要等待超时
-          await circuitBreaker.fire(runnable);
-        } catch (error) {
-          // 检查是否是熔断器异常
-          if (
-            error.name === 'OpenCircuitError' ||
-            error.message.includes('circuit')
-          ) {
-            this.logger.error(
-              \`failed to request \${urlWithParams}, nodeId = \${this.getNodeId()}, because it is in FUSED state\`,
-              error,
-            );
-            throw new ServiceUnavailableException(
-              \`请求节点[\${this.getNodeName()}]失败,URL=\${urlWithParams},msg=接口已熔断\`,
-            );
-          }
-          throw error;
-        }
-      } else {
-        // 直接执行请求
-        await runnable();
-      }
-    } catch (error) {
-      throw new ServiceUnavailableException(
-        \`请求节点[\${this.getNodeName()}]失败,msg=\${error.message}\`,
-      );
-    }
-`;
+  private static readonly NODE_HTTP_TASK_POST_EXEC_TEMPLATE =
+    '         try {\n' +
+    '          // 执行异步POST请求\n' +
+    '          const response: AxiosResponse = await AsyncHttpConnPoolUtil.doPost(\n' +
+    '            urlWithParams,\n' +
+    '            5000,\n' +
+    '            headerMap,\n' +
+    '          );\n' +
+    '\n' +
+    '          const responseCode = response.status;\n' +
+    '          const responseData = response.data;\n' +
+    '\n' +
+    '          // 检查响应状态\n' +
+    '          if (responseCode !== 200 || responseData == null) {\n' +
+    '            throw new Error(`状态码=${responseCode},响应体=${responseData}`);\n' +
+    '          }\n' +
+    '\n' +
+    '          // 设置响应体\n' +
+    '          this.setOutputResponseBody(\n' +
+    "            typeof responseData === 'string'\n" +
+    '              ? responseData\n' +
+    '              : JSON.stringify(responseData),\n' +
+    '          );\n' +
+    '        } catch (error) {\n' +
+    '          this.logger.error(\n' +
+    '            `failed to request ${urlWithParams}, nodeId = ${this.getNodeId()}`,\n' +
+    '            error,\n' +
+    '          );\n' +
+    '          throw new ServiceUnavailableException(\n' +
+    '            `请求节点[${this.getNodeName()}]失败,URL=${urlWithParams},msg=${error.message}`,\n' +
+    '          );\n' +
+    '        }\n' +
+    '      };\n' +
+    '\n' +
+    '      // 执行请求（带熔断器支持）\n' +
+    '      const circuitBreaker = this.circuitBreaker;\n' +
+    '      if (circuitBreaker) {\n' +
+    '        try {\n' +
+    '          // 使用熔断器执行请求\n' +
+    '          //           - HTTP请求只有在熔断器允许的情况下才会执行\n' +
+    '          // - 资源节省 : 熔断状态下不会浪费网络资源和时间\n' +
+    '          // - 快速失败 : 熔断状态下立即返回错误，不需要等待超时\n' +
+    '          await circuitBreaker.fire(runnable);\n' +
+    '        } catch (error) {\n' +
+    '          // 检查是否是熔断器异常\n' +
+    '          if (\n' +
+    "            error.name === 'OpenCircuitError' ||\n" +
+    "            error.message.includes('circuit')\n" +
+    '          ) {\n' +
+    '            this.logger.error(\n' +
+    '              `failed to request ${urlWithParams}, nodeId = ${this.getNodeId()}, because it is in FUSED state`,\n' +
+    '              error,\n' +
+    '            );\n' +
+    '            throw new ServiceUnavailableException(\n' +
+    '              `请求节点[${this.getNodeName()}]失败,URL=${urlWithParams},msg=接口已熔断`,\n' +
+    '            );\n' +
+    '          }\n' +
+    '          throw error;\n' +
+    '        }\n' +
+    '      } else {\n' +
+    '        // 直接执行请求\n' +
+    '        await runnable();\n' +
+    '      }\n' +
+    '    } catch (error) {\n' +
+    '      throw new ServiceUnavailableException(\n' +
+    '        `请求节点[${this.getNodeName()}]失败,msg=${error.message}`,\n' +
+    '      );\n' +
+    '    }\n';
   /**
    * 单输出调用方法模板
    * 对应Java中的SINGLE_OUTPUT_CALL_METHOD_TEMPLATE
@@ -1360,7 +1349,7 @@ export class FlowNodeUtil {
    */
   public static getScriptFromPort(port: VsPort): string {
     try {
-      const properties = JSON.parse(port.properties) as PortProperties;
+      const properties = port.properties;
       const script = properties.script;
       return script || '';
     } catch (error) {
@@ -1375,7 +1364,7 @@ export class FlowNodeUtil {
    */
   public static getAdditionDefineFromVsPort(port: VsPort): string {
     try {
-      const properties = JSON.parse(port.properties) as PortProperties;
+      const properties = port.properties;
       const additionDefine = properties.additionDefine;
       return additionDefine || '';
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1560,7 +1549,7 @@ export class FlowNodeUtil {
    */
   public static getScriptFromVsPort(vsPort: VsPort): string {
     const properties = vsPort.properties;
-    const vsPortProp = JSON.parse(properties) as VsPortProp;
+    const vsPortProp = properties;
 
     let script: string | null = null;
     try {

@@ -10,8 +10,6 @@ import { Type } from 'class-transformer';
 import { VsPortPropRoute } from './VsPortPropRoute';
 import { VsPortPropHttp } from './VsPortPropHttp';
 import { VsPortPropContext } from './VsPortPropContext';
-import { VsPortPropReqHeader } from './VsPortPropReqHeader';
-import { VsPortPropRspHeader } from './VsPortPropRspHeader';
 import { VsPortPropDataMapping } from './VsPortPropDataMapping';
 
 /**
@@ -55,15 +53,15 @@ export class VsPortProp {
   @Type(() => VsPortPropContext)
   context?: VsPortPropContext;
 
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => VsPortPropReqHeader)
-  reqHeader?: VsPortPropReqHeader;
+  // @IsOptional()
+  // @ValidateNested()
+  // @Type(() => VsPortPropReqHeader)
+  // reqHeader?: VsPortPropReqHeader;
 
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => VsPortPropRspHeader)
-  rspHeader?: VsPortPropRspHeader;
+  // @IsOptional()
+  // @ValidateNested()
+  // @Type(() => VsPortPropRspHeader)
+  // rspHeader?: VsPortPropRspHeader;
 
   @IsOptional()
   @ValidateNested()

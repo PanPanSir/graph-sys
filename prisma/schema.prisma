@@ -17,6 +17,15 @@ enum VsHttpMethodEnum {
   POST
 }
 
+class VsNodeProp {
+  // 节点名
+  name: string;
+  // x坐标
+  x: number;
+  // y坐标
+  y: number;
+}
+
 model t_vs_project {
   id             Int       @id @default(autoincrement())
   name           String    @unique @db.VarChar(64)
@@ -41,8 +50,6 @@ model t_vs_port {
   // contextCompApiId Int?      @map("context_comp_api_id")
   method           String?   @db.VarChar(8)
   path             String?   @db.VarChar(128)
-  url              String?   @db.VarChar(255)
-  pathParams       Json?
   requestTimeout   Int?      @map("request_timeout") @db.Int @default(120)
   // httpCompApiId    Int?      @map("http_comp_api_id")
   sourceApiType    String?   @map("source_api_type") @db.VarChar(12)

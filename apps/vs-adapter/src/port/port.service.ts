@@ -87,10 +87,12 @@ export class PortService {
         );
       }
     }
+    const vsPortData = req.toVsPort();
     await this.prismaService.t_vs_port.create({
       data: {
-        ...req.toVsPort(),
+        ...vsPortData,
         projectId: node.projectId,
+        properties: vsPortData.properties as any,
       },
     });
     const updateReq = new UpdatePortDto();
@@ -289,13 +291,33 @@ export class PortService {
         `不支持的端口类型,端口ID=${portId},端口类型=${vsPortType}`,
       );
     }
-    reqProp.script = script;
-    reqVsPort.properties = JSON.stringify(reqProp);
+    //  字符串中的特殊字符 ：如换行符、引号等
+    //  JSON转义问题 ：当这些代码作为JSON的value存储时，需要正确转义
+    reqProp.script = script
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t')
+      .replace(/`/g, '\\`')
+      .replace(/\${/g, '\\${');
+    reqVsPort.properties = reqProp;
     await this.prismaService.t_vs_port.update({
       where: {
         id: portId,
       },
-      data: reqVsPort,
+      data: {
+        ...reqVsPort,
+        properties: {
+          name: reqVsPort.properties.name,
+          script: reqVsPort.properties.script,
+          additionDefine: reqVsPort.properties.additionDefine,
+          http: reqVsPort.properties.http,
+          context: reqVsPort.properties.context,
+          order: reqVsPort.properties.order,
+          route: reqVsPort.properties.route,
+        } as any,
+      },
     });
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -61,16 +61,18 @@ export class LinkService {
     if (!startNode || !targetNode) {
       throw new BadRequestException('连线异常：边的两个节点必须都存在');
     }
-    const sourcePort = await this.prismaService.t_vs_port.findUnique({
+    const sourcePortData = await this.prismaService.t_vs_port.findUnique({
       where: {
         id: req.sourcePort,
       },
     });
-    const targetPort = await this.prismaService.t_vs_port.findUnique({
+    const targetPortData = await this.prismaService.t_vs_port.findUnique({
       where: {
         id: req.targetPort,
       },
     });
+    const sourcePort = VsPort.prismaToVsPort(sourcePortData);
+    const targetPort = VsPort.prismaToVsPort(targetPortData);
     this.validPort(startNode, targetNode, sourcePort, targetPort);
     try {
       await this.prismaService.t_vs_link.create({
